@@ -1,0 +1,16 @@
+# python version: 3.12.12
+# pip3 install torch torchvision
+# pip install -U ultralytics
+# pip install pyttsx3
+# pip install pygame
+# pip install python-dotenv
+# pip install line-bot-sdk
+# pip install Flask
+# pip install boto3
+# conda install -c conda-forge cython
+# pip install gdown
+# pip install tensorboard
+# pip install fastapi
+# pip install uvicorn
+# pip install aiortc
+# pip install "uvicorn[standard]"

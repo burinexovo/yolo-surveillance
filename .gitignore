@@ -1,0 +1,10 @@
+__pycache__/
+datasets/
+recordings/
+playgrounds/
+logs/
+.env
+.*.py
+.*.ipynb
+*.json
+*.sh
