@@ -76,6 +76,7 @@ app.include_router(signaling_router)
 if __name__ == "__main__":
     import uvicorn
     # public command: uvicorn server:app --host 0.0.0.0 --port 8000
+    # cloudflared tunnel run tcm-backend
     # debug command: uvicorn server:app --reload
 
     uvicorn.run(

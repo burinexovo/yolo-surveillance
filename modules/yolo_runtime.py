@@ -189,8 +189,10 @@ class YoloRuntime:
             if frame is None:
                 cv2.waitKey(1)
                 continue
-
-            frame = cv2.flip(frame, 1)
+            
+            height, width = frame.shape[:2]
+            # 鏡像翻轉
+            # frame = cv2.flip(frame, 1)
 
             current_time = time.time()
             fps = 1 / (current_time - prev_time) if prev_time != 0 else 0
@@ -210,7 +212,8 @@ class YoloRuntime:
                 persist=True,
                 conf=0.5,
                 iou=0.6,
-                classes=[47, 49],  # TODO: 之後改回 person
+                # classes=[47, 49],  # TODO: 之後改回 person
+                classes=[19],  # 暫時用牛防止誤報
                 verbose=False
             )
             r = results[0]
@@ -367,6 +370,7 @@ class YoloRuntime:
 
             if self.show_window:
                 cv2.imshow(window_name, annotated_frame)
+                cv2.resizeWindow(window_name, width, height)
                 # 按 q 離開
                 if cv2.waitKey(1) & 0xFF == ord("q"):
                     self._stop.set()
