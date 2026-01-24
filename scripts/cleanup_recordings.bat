@@ -1,7 +1,7 @@
 @echo off
 
 REM === 切到專案目錄 ===
-cd /d C:\yolo11-detect
+cd /d PROJECT_PATH
 
 REM === 啟用 conda ===
 call C:\Users\User\anaconda3\Scripts\activate.bat yolo-surveillance
