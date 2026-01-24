@@ -40,13 +40,16 @@ def cleanup(cfg: CleanupConfig) -> int:
 
         if d < cutoff:
             if cfg.dry_run:
-                print(f"[DRY] would delete: {p}")
+                print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+                      f"[DRY] would delete: {p}")
             else:
-                print(f"🗑️ delete: {p}")
+                print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+                      f"🗑️ delete: {p}")
                 shutil.rmtree(p, ignore_errors=False)
             deleted += 1
 
-    print(f"Done. deleted_folders={deleted} (keep_days={cfg.keep_days})")
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
+          f"Done. deleted_folders={deleted} (keep_days={cfg.keep_days})")
     return deleted
 
 
