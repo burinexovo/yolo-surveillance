@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-Hant">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>店鋪儀表板 - TCM Shop</title>
+		<link rel="stylesheet" href="/web/dashboard.css?v=20260128_1050" />
+		<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+	</head>
+	<body>
+		<header>
+			<h1>元壽蔘藥行儀表板</h1>
+			<div class="header-actions">
+				<button id="themeToggle" title="切換主題">🌙</button>
+				<select id="rangeSelect">
+					<option value="7d" selected>最近 7 天</option>
+					<option value="14d">最近 14 天</option>
+					<option value="30d">最近 30 天</option>
+					<option value="90d">最近 90 天 (季度)</option>
+					<option value="365d">最近 365 天 (整年)</option>
+				</select>
+				<button id="refreshBtn">重新整理</button>
+			</div>
+		</header>
+
+		<main>
+			<!-- 即時狀態卡片 -->
+			<section class="cards-container">
+				<div class="card" id="cardInsideCount">
+					<div class="card-icon">👥</div>
+					<div class="card-content">
+						<div class="card-value" id="insideCount">-</div>
+						<div class="card-label">目前店內人數</div>
+					</div>
+				</div>
+
+				<div class="card" id="cardTodayVisits">
+					<div class="card-icon">🏪</div>
+					<div class="card-content">
+						<div class="card-value" id="todayVisits">-</div>
+						<div class="card-label">今日訪客數</div>
+					</div>
+				</div>
+
+				<div class="card" id="cardLastEntry">
+					<div class="card-icon">🕒</div>
+					<div class="card-content">
+						<div class="card-value" id="lastEntryTime">-</div>
+						<div class="card-label">最後入店時間</div>
+					</div>
+				</div>
+
+				<div class="card" id="cardSystemStatus">
+					<div class="card-icon">📡</div>
+					<div class="card-content">
+						<div class="card-value" id="systemStatus">-</div>
+						<div class="card-label">系統狀態</div>
+					</div>
+				</div>
+			</section>
+
+			<!-- 統計摘要 -->
+			<section class="summary-container">
+				<div class="summary-item">
+					<span class="summary-label">期間總訪客</span>
+					<span class="summary-value" id="totalVisits">-</span>
+				</div>
+				<div class="summary-item">
+					<span class="summary-label">日均訪客</span>
+					<span class="summary-value" id="avgDailyVisits">-</span>
+				</div>
+				<div class="summary-item">
+					<span class="summary-label">尖峰日期</span>
+					<span class="summary-value" id="peakDay">-</span>
+				</div>
+				<div class="summary-item">
+					<span class="summary-label">尖峰時段</span>
+					<span class="summary-value" id="peakHour">-</span>
+				</div>
+			</section>
+
+			<!-- 圖表區域 -->
+			<section class="charts-container">
+				<div class="chart-card">
+					<h3>今日每小時訪客分布</h3>
+					<canvas id="hourlyChart"></canvas>
+				</div>
+
+				<div class="chart-card">
+					<h3>每日訪客趨勢</h3>
+					<canvas id="dailyChart"></canvas>
+				</div>
+			</section>
+		</main>
+
+		<footer>
+			<p>最後更新: <span id="lastUpdate">-</span></p>
+		</footer>
+
+		<script src="/web/dashboard.js?v=20260128_1050"></script>
+	</body>
+</html>

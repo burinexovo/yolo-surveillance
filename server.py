@@ -13,7 +13,8 @@ from modules.shop_state_manager import shop_state_manager  # instance
 from routers.alert_routes import router as alert_router
 from routers.state_routes import router as state_router
 from routers.auth_routes import router as auth_router
-from routers.watch_routes import router as watch_router
+from routers.web_routes import router as watch_router
+from routers.dashboard_routes import router as dashboard_router
 from modules.signaling.router import router as signaling_router
 
 from utils.logging import setup_logging
@@ -70,6 +71,7 @@ app.include_router(alert_router)
 app.include_router(state_router)
 app.include_router(auth_router)
 app.include_router(watch_router)
+app.include_router(dashboard_router)
 app.include_router(signaling_router)
 
 

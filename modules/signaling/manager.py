@@ -25,8 +25,8 @@ class SignalingManager:
             camera_id = msg["camera_id"]
             self.gateway = WebRTCGateway(
                 # url=settings.rtsp_url_stream1,
-                url=settings.rtsp_url_stream2,
-                # url=settings.device_camera0,
+                # url=settings.rtsp_url_stream2,
+                url=settings.device_camera0,
                 camera_id=camera_id,
                 signaling=self,
                 settings=settings
@@ -34,12 +34,14 @@ class SignalingManager:
             await self.gateway.start()
 
         elif msg_type == "answer":
-            logger.info("WebRTC get answer: %s", msg)
-            await self.gateway.receive_answer(msg)
+            if self.gateway:
+                logger.info("WebRTC get answer: %s", msg)
+                await self.gateway.receive_answer(msg)
 
         elif msg_type == "ice":
-            logger.info("WebRTC get ice: %s", msg["candidate"])
-            await self.gateway.receive_ice(msg["candidate"])
+            if self.gateway and msg.get("candidate"):
+                logger.info("WebRTC get ice: %s", msg["candidate"])
+                await self.gateway.receive_ice(msg["candidate"])
 
     async def send(self, payload: dict):
         await self.ws.send_text(json.dumps(payload))

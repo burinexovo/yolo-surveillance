@@ -17,4 +17,6 @@ async def signaling_ws(ws: WebSocket):
             msg = await ws.receive_json()
             await mgr.handle_message(msg)
     except WebSocketDisconnect:
+        pass
+    finally:
         mgr.close()
