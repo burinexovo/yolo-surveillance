@@ -3,6 +3,7 @@ datasets/
 recordings/
 playgrounds/
 logs/
+data/
 .env
 .*.py
 .*.ipynb

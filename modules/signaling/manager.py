@@ -25,8 +25,8 @@ class SignalingManager:
             camera_id = msg["camera_id"]
             self.gateway = WebRTCGateway(
                 # url=settings.rtsp_url_stream1,
-                # url=settings.rtsp_url_stream2,
-                url=settings.device_camera0,
+                url=settings.rtsp_url_stream2,
+                # url=settings.device_camera0,
                 camera_id=camera_id,
                 signaling=self,
                 settings=settings
