@@ -1,4 +1,4 @@
-# modules/cloudflare_r2.py
+# modules/storage/cloudflare_r2.py
 from __future__ import annotations
 
 from dataclasses import dataclass

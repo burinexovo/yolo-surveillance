@@ -4,7 +4,7 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>店鋪儀表板 - TCM Shop</title>
-		<link rel="stylesheet" href="/web/dashboard.css?v=20260129_0600" />
+		<link rel="stylesheet" href="/web/dashboard.css?v=20260129_2135" />
 		<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 	</head>
 	<body>
@@ -118,6 +118,9 @@
 				<div class="recording-header">
 					<h3>錄影回放</h3>
 					<div class="recording-controls">
+						<select id="recordingCamera" class="camera-select">
+							<option value="">載入中...</option>
+						</select>
 						<input type="date" id="recordingDate" />
 						<span class="recording-summary" id="recordingSummary">-</span>
 					</div>
@@ -165,6 +168,6 @@
 			<p>最後更新: <span id="lastUpdate">-</span></p>
 		</footer>
 
-		<script src="/web/dashboard.js?v=20260129_0600"></script>
+		<script src="/web/dashboard.js?v=20260129_2131"></script>
 	</body>
 </html>

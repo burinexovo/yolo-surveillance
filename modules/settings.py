@@ -1,8 +1,17 @@
 # modules/settings.py
 from pydantic_settings import BaseSettings
+from pydantic import BaseModel
 from pathlib import Path
 from typing import Optional
 from functools import lru_cache
+
+
+class CameraConfig(BaseModel):
+    """攝影機設定"""
+    camera_id: str      # "cam1", "cam2"
+    label: str          # "門口攝影機", "店內攝影機"
+    rtsp_url: str
+    has_yolo: bool = False
 
 
 class Settings(BaseSettings):
@@ -43,9 +52,22 @@ class Settings(BaseSettings):
     # =========================
     # Video Inputs / Streaming
     # =========================
-    device_camera0: Optional[str] = None
-    rtsp_url_stream1: Optional[str] = None
-    rtsp_url_stream2: Optional[str] = None
+    device_camera0: Optional[str] = None  # 作為 camera1_rtsp_url 的回退值
+
+    # =========================
+    # Multi-Camera Config
+    # =========================
+    # Camera 1 (with YOLO)
+    camera1_id: str = "cam1"
+    camera1_label: str = "門口攝影機"
+    camera1_rtsp_url: Optional[str] = None  # 回退到 device_camera0
+    camera1_has_yolo: bool = True
+
+    # Camera 2 (view only)
+    camera2_id: str = "cam2"
+    camera2_label: str = "店內攝影機"
+    camera2_rtsp_url: Optional[str] = None
+    camera2_has_yolo: bool = False
 
     # =========================
     # Directories
@@ -115,6 +137,38 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+
+    def get_cameras(self) -> list[CameraConfig]:
+        """取得所有已設定的攝影機列表"""
+        cameras = []
+
+        # Camera 1 (用 device_camera0 作為回退)
+        cam1_url = self.camera1_rtsp_url or self.device_camera0
+        if cam1_url:
+            cameras.append(CameraConfig(
+                camera_id=self.camera1_id,
+                label=self.camera1_label,
+                rtsp_url=cam1_url,
+                has_yolo=self.camera1_has_yolo,
+            ))
+
+        # Camera 2
+        if self.camera2_rtsp_url:
+            cameras.append(CameraConfig(
+                camera_id=self.camera2_id,
+                label=self.camera2_label,
+                rtsp_url=self.camera2_rtsp_url,
+                has_yolo=self.camera2_has_yolo,
+            ))
+
+        return cameras
+
+    def get_camera_by_id(self, camera_id: str) -> Optional[CameraConfig]:
+        """依 camera_id 取得攝影機設定"""
+        for cam in self.get_cameras():
+            if cam.camera_id == camera_id:
+                return cam
+        return None
 
 
 @lru_cache

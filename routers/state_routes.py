@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter
-from modules.shop_state_manager import shop_state_manager
+from modules.core.shop_state_manager import shop_state_manager
 
 
 router = APIRouter()

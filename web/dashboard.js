@@ -1,4 +1,5 @@
 // web/dashboard.js
+console.log("✅ dashboard.js VERSION = 2026-01-29 12:00");
 console.log("Dashboard loaded");
 
 // === 設定 ===
@@ -394,9 +395,10 @@ elements.refreshBtn.addEventListener("click", refreshAll);
 
 document.getElementById("themeToggle").addEventListener("click", toggleTheme);
 
-// 即時畫面按鈕 - 開新分頁
+// 即時畫面按鈕 - 開新分頁（繼承當前主題）
 document.getElementById("watchBtn")?.addEventListener("click", () => {
-    window.open("/watch", "_blank");
+    const currentTheme = document.documentElement.getAttribute("data-theme") || "light";
+    window.open(`/watch?theme=${currentTheme}`, "_blank");
 });
 
 // === 錄影回放模組 ===
@@ -404,9 +406,11 @@ const recording = {
     recordings: [],
     events: [],
     currentIndex: -1,
+    currentCameraId: "cam1",
 
     // DOM 元素
     els: {
+        cameraSelect: null,
         dateInput: null,
         summary: null,
         timeline: null,
@@ -417,8 +421,9 @@ const recording = {
         clipsList: null,
     },
 
-    init() {
+    async init() {
         this.els = {
+            cameraSelect: document.getElementById("recordingCamera"),
             dateInput: document.getElementById("recordingDate"),
             summary: document.getElementById("recordingSummary"),
             timeline: document.getElementById("timelineTrack"),
@@ -434,13 +439,50 @@ const recording = {
         this.els.dateInput.value = today;
 
         // 綁定事件
+        this.els.cameraSelect.addEventListener("change", () => {
+            this.currentCameraId = this.els.cameraSelect.value;
+            this.loadDate();
+        });
         this.els.dateInput.addEventListener("change", () => this.loadDate());
         this.els.prevBtn.addEventListener("click", () => this.playPrev());
         this.els.nextBtn.addEventListener("click", () => this.playNext());
         this.els.video.addEventListener("ended", () => this.onVideoEnded());
 
+        // 載入攝影機列表
+        await this.loadCameras();
+
         // 載入今天的錄影
         this.loadDate();
+    },
+
+    async loadCameras() {
+        try {
+            // 注意：cameras API 在 /api/cameras，不在 /api/dashboard 下
+            const url = new URL("/api/cameras", window.location.origin);
+            url.searchParams.set("token", token);
+            const response = await fetch(url);
+            if (!response.ok) throw new Error("Failed to load cameras");
+            const res = await response.json();
+
+            this.els.cameraSelect.innerHTML = "";
+
+            res.cameras.forEach((cam) => {
+                const opt = document.createElement("option");
+                opt.value = cam.id;
+                opt.textContent = cam.label;
+                if (cam.id === this.currentCameraId) opt.selected = true;
+                this.els.cameraSelect.appendChild(opt);
+            });
+
+            // 如果目前選擇的攝影機不在列表中，選擇第一個
+            if (res.cameras.length > 0 && !res.cameras.find(c => c.id === this.currentCameraId)) {
+                this.currentCameraId = res.cameras[0].id;
+                this.els.cameraSelect.value = this.currentCameraId;
+            }
+        } catch (e) {
+            console.error("loadCameras error:", e);
+            this.els.cameraSelect.innerHTML = '<option value="cam1">預設攝影機</option>';
+        }
     },
 
     async loadDate() {
@@ -452,7 +494,7 @@ const recording = {
         try {
             // 並行載入錄影列表和事件
             const [recRes, evtRes] = await Promise.all([
-                fetchAPI("/recordings", { date: dateStr }),
+                fetchAPI("/recordings", { date: dateStr, camera_id: this.currentCameraId }),
                 fetchAPI("/events", { date: dateStr }),
             ]);
 
@@ -556,7 +598,7 @@ const recording = {
 
         const rec = this.recordings[index];
         const dateStr = this.els.dateInput.value.replace(/-/g, "");
-        const videoUrl = `${API_BASE}/recordings/${dateStr}/${rec.filename}?token=${encodeURIComponent(token)}`;
+        const videoUrl = `${API_BASE}/recordings/${this.currentCameraId}/${dateStr}/${rec.filename}?token=${encodeURIComponent(token)}`;
 
         this.els.video.src = videoUrl;
         this.els.video.play().catch(e => console.log("Auto-play blocked:", e));
@@ -663,7 +705,7 @@ async function initDashboard() {
         refreshAll();
 
         // 初始化錄影回放模組
-        recording.init();
+        await recording.init();
 
         // 每 30 秒自動更新即時狀態
         setInterval(updateRealtime, 30000);

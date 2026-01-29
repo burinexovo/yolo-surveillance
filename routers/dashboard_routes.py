@@ -11,8 +11,8 @@ import httpx
 from fastapi import APIRouter, HTTPException, Query, Request, Depends
 from pydantic import BaseModel
 
-from modules.visitor_db import visitor_db
-from modules.shop_state_manager import shop_state_manager
+from modules.storage.visitor_db import visitor_db
+from modules.core.shop_state_manager import shop_state_manager
 
 logger = logging.getLogger(__name__)
 

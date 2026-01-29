@@ -9,16 +9,16 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Optional
 
 from ultralytics import YOLO
-from modules.audio_alert import init_audio, play_alert_async
-from modules.cloudflare_r2 import R2Config, CloudflareR2
-from modules.video_recorder import RecorderConfig, VideoRecorder
-from modules.recording_worker import RecordingConfig, RecordingWorker
-from modules.line_notify import LineConfig, push_message
-from modules.event_worker import WorkerConfig, EventWorker
-from modules.rtsp_reader import RTSPReader
+from modules.notifications.audio_alert import init_audio, play_alert_async
+from modules.storage.cloudflare_r2 import R2Config, CloudflareR2
+from modules.video.video_recorder import RecorderConfig, VideoRecorder
+from modules.video.recording_worker import RecordingConfig, RecordingWorker
+from modules.notifications.line_notify import LineConfig, push_message
+from modules.core.event_worker import WorkerConfig, EventWorker
+from modules.video.rtsp_reader import RTSPReader
 from modules.settings import Settings
-from modules.shop_state_manager import ShopStateManager
-from modules.video_source import get_reader
+from modules.core.shop_state_manager import ShopStateManager
+from modules.video.video_source import get_reader
 from utils.r2_keys import make_datetime_key
 from utils import (
     ENTRY_ROI_PTS,
@@ -139,10 +139,11 @@ class YoloRuntime:
 
         # --- 錄影模組 ---
         self.rec = VideoRecorder(RecorderConfig(
+            camera_id="cam1",  # 輸出到 recordings/cam1/{date}/
             save_raw=True,
             save_annot=False,
             fps=30,
-            segment_minutes=30,
+            segment_minutes=3,
         ))
         self.rec.start()
 

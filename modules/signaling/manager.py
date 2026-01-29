@@ -8,8 +8,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 settings = get_settings()
-if settings.rtsp_url_stream1 is None:
-    raise RuntimeError("RTSP_URL_STREAM 未設定")
 
 
 class SignalingManager:
@@ -22,11 +20,19 @@ class SignalingManager:
 
         if msg_type == "watch":
             logger.info("WebRTC watch: %s", msg)
-            camera_id = msg["camera_id"]
+            camera_id = msg.get("camera_id", "cam1")
+
+            # 依 camera_id 查詢攝影機設定
+            camera = settings.get_camera_by_id(camera_id)
+            if camera is None:
+                await self.send({
+                    "type": "error",
+                    "message": f"未知的攝影機: {camera_id}"
+                })
+                return
+
             self.gateway = WebRTCGateway(
-                # url=settings.rtsp_url_stream1,
-                # url=settings.rtsp_url_stream2,
-                url=settings.device_camera0,
+                url=camera.rtsp_url,
                 camera_id=camera_id,
                 signaling=self,
                 settings=settings

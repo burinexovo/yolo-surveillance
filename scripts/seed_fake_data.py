@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import random
 from datetime import datetime, timedelta
-from modules.visitor_db import visitor_db
+from modules.storage.visitor_db import visitor_db
 
 # 設定隨機種子以便重現
 random.seed(42)

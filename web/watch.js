@@ -1,12 +1,23 @@
 // web/watch.js
-console.log("✅ watch.js VERSION = 2026-01-29 04:00");
+console.log("✅ watch.js VERSION = 2026-01-29 12:00");
+console.log("Watch loaded");
 
 // === 主題切換 ===
 const THEME_KEY = "watch-theme";
 
 function initTheme() {
-  const saved = localStorage.getItem(THEME_KEY);
-  const theme = saved === "dark" ? "dark" : "light";
+  const params = new URLSearchParams(window.location.search);
+  const urlTheme = params.get("theme");
+
+  let theme;
+  if (urlTheme === "dark" || urlTheme === "light") {
+    theme = urlTheme;
+    localStorage.setItem(THEME_KEY, theme);  // 儲存以供之後使用
+  } else {
+    const saved = localStorage.getItem(THEME_KEY);
+    theme = saved === "dark" ? "dark" : "light";
+  }
+
   applyTheme(theme);
 }
 
@@ -131,14 +142,106 @@ const pinLogin = {
   },
 };
 
-// 根據 http/https 自動組成 ws/wss
-const WS_URL =
-  (location.protocol === "https:" ? "wss://" : "ws://") +
-  location.host +
-  `/ws?token=${encodeURIComponent(token)}`;
+// === WebRTC 品質監控模組 ===
+const qualityStats = {
+  interval: null,
+  lastBytes: 0,
+  lastTime: 0,
 
-// 要看哪一支攝影機（之後可以從 URL query 拿）
-const CAMERA_ID = "shop_cam_1";
+  init() {
+    this.createUI();
+  },
+
+  createUI() {
+    if (document.getElementById("statsContainer")) return;
+
+    const html = `
+      <div id="statsContainer" class="stats-container">
+        <div class="stats-toggle" id="statsToggle">ℹ️</div>
+        <div class="stats-panel hidden" id="statsPanel">
+          <div class="stat-row"><span class="stat-label">位元率</span><span id="statsBitrate" class="stat-value">-</span></div>
+          <div class="stat-row"><span class="stat-label">FPS</span><span id="statsFps" class="stat-value">-</span></div>
+          <div class="stat-row"><span class="stat-label">解析度</span><span id="statsRes" class="stat-value">-</span></div>
+          <div class="stat-row"><span class="stat-label">丟包率</span><span id="statsLoss" class="stat-value">-</span></div>
+        </div>
+      </div>
+    `;
+    const header = document.querySelector("header");
+    if (header) {
+      header.insertAdjacentHTML("afterend", html);
+    }
+    document.getElementById("statsToggle")?.addEventListener("click", () => {
+      document.getElementById("statsPanel")?.classList.toggle("hidden");
+    });
+  },
+
+  start() {
+    if (this.interval) return;
+    this.interval = setInterval(() => this.collect(), 1000);
+  },
+
+  stop() {
+    if (this.interval) clearInterval(this.interval);
+    this.interval = null;
+    this.lastBytes = 0;
+    this.lastTime = 0;
+  },
+
+  async collect() {
+    if (!pc) return;
+    try {
+      const stats = await pc.getStats();
+      stats.forEach((r) => {
+        if (r.type === "inbound-rtp" && r.kind === "video") {
+          const now = performance.now();
+          if (this.lastTime > 0) {
+            const kbps = Math.round(
+              ((r.bytesReceived - this.lastBytes) * 8) / (now - this.lastTime)
+            );
+            const el = document.getElementById("statsBitrate");
+            if (el) el.textContent = kbps + " kbps";
+          }
+          this.lastBytes = r.bytesReceived;
+          this.lastTime = now;
+
+          const fpsEl = document.getElementById("statsFps");
+          if (fpsEl && r.framesPerSecond) {
+            fpsEl.textContent = Math.round(r.framesPerSecond);
+          }
+
+          const resEl = document.getElementById("statsRes");
+          if (resEl && r.frameWidth) {
+            resEl.textContent = `${r.frameWidth}x${r.frameHeight}`;
+          }
+
+          const lossEl = document.getElementById("statsLoss");
+          if (lossEl && r.packetsReceived) {
+            const total = r.packetsReceived + (r.packetsLost || 0);
+            const loss = total > 0 ? (((r.packetsLost || 0) / total) * 100).toFixed(1) : "0.0";
+            lossEl.textContent = loss + "%";
+          }
+        }
+      });
+    } catch (e) {
+      console.error("qualityStats collect error:", e);
+    }
+  },
+};
+
+// 根據 http/https 自動組成 ws/wss
+function getWsUrl() {
+  return (
+    (location.protocol === "https:" ? "wss://" : "ws://") +
+    location.host +
+    `/ws?token=${encodeURIComponent(token)}`
+  );
+}
+
+// 目前選擇的攝影機 ID
+let currentCameraId = params.get("camera") || "cam1";
+
+// 攝影機選擇器
+const cameraSelect = document.getElementById("cameraSelect");
 
 // WebRTC STUN server
 // const RTC_CONFIG = {
@@ -276,6 +379,9 @@ function createPeerConnection(rtcConfig) {
       hasVideo = true;       // ✅ 代表已經拿到畫面
       hideLoading();
       logStatus("已接收到影像流");
+
+      // 啟動品質監控
+      qualityStats.start();
     }
   };
   // pc.ontrack = (event) => {
@@ -326,6 +432,66 @@ function createPeerConnection(rtcConfig) {
   };
 }
 
+// === 載入攝影機列表 ===
+
+async function loadCameras() {
+  try {
+    const res = await fetch(`/api/cameras?token=${encodeURIComponent(token)}`);
+    if (!res.ok) throw new Error("Failed to load cameras");
+
+    const data = await res.json();
+    cameraSelect.innerHTML = "";
+
+    data.cameras.forEach((cam) => {
+      const opt = document.createElement("option");
+      opt.value = cam.id;
+      opt.textContent = cam.label;
+      if (cam.id === currentCameraId) opt.selected = true;
+      cameraSelect.appendChild(opt);
+    });
+
+    // 如果當前選擇的攝影機不在列表中，選擇第一個
+    if (data.cameras.length > 0 && !data.cameras.find(c => c.id === currentCameraId)) {
+      currentCameraId = data.cameras[0].id;
+      cameraSelect.value = currentCameraId;
+    }
+  } catch (e) {
+    console.error("loadCameras error:", e);
+    cameraSelect.innerHTML = '<option value="cam1">預設攝影機</option>';
+  }
+}
+
+// 攝影機切換事件
+cameraSelect.addEventListener("change", async () => {
+  currentCameraId = cameraSelect.value;
+
+  // 重新連線
+  showLoading("切換攝影機中...");
+  qualityStats.stop();
+
+  if (pc) {
+    pc.close();
+    pc = null;
+  }
+  if (socket) {
+    socket.close();
+    socket = null;
+  }
+
+  videoEl.srcObject = null;
+  hasVideo = false;
+
+  try {
+    const rtcConfig = await getRtcConfigOrThrow();
+    createPeerConnection(rtcConfig);
+    connectWebSocket();
+  } catch (e) {
+    console.error("Camera switch error:", e);
+    hideLoading();
+    logStatus("切換攝影機失敗");
+  }
+});
+
 // === 6. 建立 WebSocket，負責 signaling ===
 
 function connectWebSocket() {
@@ -334,15 +500,14 @@ function connectWebSocket() {
   }
 
   logStatus("連線到伺服器中...");
-  // logStatus(WS_URL)
-  socket = new WebSocket(WS_URL);
+  socket = new WebSocket(getWsUrl());
 
   socket.onopen = () => {
     logStatus("WebSocket 已連線，請求即時畫面...");
     // 通知後端「我要看哪一支攝影機」
     const msg = {
       type: "watch", // 自訂協定，後端看到就會啟動 RTSP + WebRTC
-      camera_id: CAMERA_ID,
+      camera_id: currentCameraId,
     };
     socket.send(JSON.stringify(msg));
   };
@@ -403,8 +568,15 @@ function connectWebSocket() {
 // === 7. 初始化 WebRTC 連線 ===
 
 async function initWatch() {
+  // 初始化品質監控 UI
+  qualityStats.init();
+
   try {
     showLoading("建立即時連線中…");
+
+    // 載入攝影機列表
+    await loadCameras();
+
     const rtcConfig = await getRtcConfigOrThrow();
     console.log("rtc-config ok:", rtcConfig);
     // ✅ 到這裡，才開始 WebRTC / WebSocket
@@ -444,6 +616,9 @@ window.addEventListener("load", () => {
 reconnectBtn.addEventListener("click", async () => {
   try {
     showLoading("重新連線中…");
+
+    // 停止品質監控
+    qualityStats.stop();
 
     // ✅ 重連前再抓一次：順便驗 token + 避免 TURN 短期憑證過期
     RTC_CONFIG_CACHE = null; // 想保守就清掉，不保守可不清

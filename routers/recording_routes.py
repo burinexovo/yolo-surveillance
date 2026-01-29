@@ -12,7 +12,7 @@ from fastapi import APIRouter, HTTPException, Query, Request, Depends
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from modules.visitor_db import visitor_db
+from modules.storage.visitor_db import visitor_db
 from routers.dashboard_routes import verify_token
 
 logger = logging.getLogger(__name__)
@@ -23,6 +23,8 @@ router = APIRouter(prefix="/api/dashboard", tags=["recordings"])
 RECORDINGS_DIR = Path(__file__).parent.parent / "recordings"
 DATE_PATTERN = re.compile(r"^\d{8}$")  # YYYYMMDD
 FILENAME_PATTERN = re.compile(r"^\d{8}_\d{6}_raw\.mp4$")  # YYYYMMDD_HHMMSS_raw.mp4
+CAMERA_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,20}$")  # 安全的 camera_id
+DEFAULT_CAMERA_ID = "cam1"
 
 
 # === Response Models ===
@@ -81,9 +83,28 @@ def validate_filename(filename: str) -> None:
         raise HTTPException(status_code=400, detail="Invalid filename format")
 
 
-def get_recording_dir(date_str: str) -> Path:
-    """取得指定日期的錄影目錄，含路徑遍歷防護"""
-    date_dir = RECORDINGS_DIR / date_str
+def validate_camera_id(camera_id: str) -> str:
+    """驗證 camera_id 格式"""
+    if not CAMERA_ID_PATTERN.match(camera_id):
+        raise HTTPException(status_code=400, detail="Invalid camera_id format")
+    return camera_id
+
+
+def get_recording_dir(camera_id: str, date_str: str) -> Path:
+    """取得指定攝影機和日期的錄影目錄，含路徑遍歷防護"""
+    # 新結構: recordings/{camera_id}/{date_str}
+    # 向後相容: 如果新結構不存在，檢查舊結構 recordings/{date_str}
+    new_dir = RECORDINGS_DIR / camera_id / date_str
+    old_dir = RECORDINGS_DIR / date_str
+
+    # 優先使用新結構
+    if new_dir.exists():
+        date_dir = new_dir
+    elif old_dir.exists() and camera_id == DEFAULT_CAMERA_ID:
+        # 向後相容：舊錄影只對應預設攝影機
+        date_dir = old_dir
+    else:
+        date_dir = new_dir  # 返回新結構路徑（可能不存在）
 
     # 二次確認路徑安全
     try:
@@ -102,10 +123,12 @@ async def list_recordings(
     request: Request,
     token: str = Depends(verify_token),
     date: str = Query(..., alias="date", description="日期 (YYYY-MM-DD 或 YYYYMMDD)"),
+    camera_id: str = Query(DEFAULT_CAMERA_ID, description="攝影機 ID"),
 ):
-    """列出指定日期的所有錄影檔案"""
+    """列出指定日期和攝影機的所有錄影檔案"""
     date_str = validate_date_param(date)
-    date_dir = get_recording_dir(date_str)
+    camera_id = validate_camera_id(camera_id)
+    date_dir = get_recording_dir(camera_id, date_str)
 
     if not date_dir.exists():
         return RecordingsResponse(
@@ -174,20 +197,22 @@ async def list_events(
     )
 
 
-@router.get("/recordings/{date_str}/{filename}")
+@router.get("/recordings/{camera_id}/{date_str}/{filename}")
 async def stream_recording(
     request: Request,
+    camera_id: str,
     date_str: str,
     filename: str,
     token: str = Depends(verify_token),
 ):
     """串流播放錄影檔案，支援 HTTP Range Requests"""
     # 驗證參數
+    camera_id = validate_camera_id(camera_id)
     date_str = validate_date_param(date_str)
     validate_filename(filename)
 
     # 建構檔案路徑
-    date_dir = get_recording_dir(date_str)
+    date_dir = get_recording_dir(camera_id, date_str)
     file_path = date_dir / filename
 
     # 二次確認路徑安全

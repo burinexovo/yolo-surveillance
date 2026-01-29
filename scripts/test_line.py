@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 from dotenv import load_dotenv
 
-from modules.line_notify import LineConfig, push_message
+from modules.notifications.line_notify import LineConfig, push_message
 
 load_dotenv()
 

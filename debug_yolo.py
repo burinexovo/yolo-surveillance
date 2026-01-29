@@ -1,7 +1,7 @@
 # debug_yolo.py
 from modules.settings import get_settings
-from modules.yolo_runtime import YoloRuntime
-from modules.shop_state_manager import shop_state_manager
+from modules.core.yolo_runtime import YoloRuntime
+from modules.core.shop_state_manager import shop_state_manager
 
 if __name__ == "__main__":
     settings = get_settings()

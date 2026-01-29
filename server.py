@@ -6,9 +6,10 @@ import logging
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from modules.yolo_runtime import YoloRuntime
+from modules.core.yolo_runtime import YoloRuntime
 from modules.settings import get_settings
-from modules.shop_state_manager import shop_state_manager  # instance
+from modules.core.shop_state_manager import shop_state_manager  # instance
+from modules.video.camera_recorder import CameraRecorder, CameraRecorderConfig
 
 from routers.alert_routes import router as alert_router
 from routers.state_routes import router as state_router
@@ -16,6 +17,7 @@ from routers.auth_routes import router as auth_router
 from routers.web_routes import router as watch_router
 from routers.dashboard_routes import router as dashboard_router
 from routers.recording_routes import router as recording_router
+from routers.camera_routes import router as camera_router
 from modules.signaling.router import router as signaling_router
 
 from utils.logging import setup_logging
@@ -23,12 +25,24 @@ from utils.logging import setup_logging
 
 settings = get_settings()
 
+# === cam1: YOLO + 錄影（由 YoloRuntime 處理）===
 runtime = YoloRuntime(
     settings=settings,
     shop_state_manager=shop_state_manager,
     show_window=False,
     run_in_thread=True,
 )
+
+# === 非 YOLO 攝影機的獨立錄影服務 ===
+camera_recorders: list[CameraRecorder] = []
+for cam in settings.get_cameras():
+    if not cam.has_yolo:  # cam2 等非 YOLO 攝影機
+        recorder = CameraRecorder(CameraRecorderConfig(
+            camera=cam,
+            fps=30,
+            segment_minutes=3,
+        ))
+        camera_recorders.append(recorder)
 
 setup_logging(
     # level=logging.INFO,        # production
@@ -43,13 +57,20 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     # === Startup ===
     runtime.start()
-    logger.info("🚀 YoloRuntime started")
+    logger.info("YoloRuntime started (cam1)")
+
+    for recorder in camera_recorders:
+        recorder.start()
+        logger.info("CameraRecorder started (%s)", recorder.camera.camera_id)
 
     yield
 
     # === Shutdown ===
+    for recorder in camera_recorders:
+        recorder.stop()
+
     runtime.stop()
-    logger.info("🛑 YoloRuntime stopped")
+    logger.info("All recorders stopped")
 
 
 app = FastAPI(
@@ -74,6 +95,7 @@ app.include_router(auth_router)
 app.include_router(watch_router)
 app.include_router(dashboard_router)
 app.include_router(recording_router)
+app.include_router(camera_router)
 app.include_router(signaling_router)
 
 

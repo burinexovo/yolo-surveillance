@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from modules.alert_manager import alert_manager
+from modules.notifications.alert_manager import alert_manager
 
 router = APIRouter(
     prefix="/alerts",

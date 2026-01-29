@@ -13,7 +13,7 @@ from aiortc.rtcconfiguration import RTCIceServer, RTCConfiguration
 from aiortc.sdp import candidate_from_sdp
 
 from modules.webrtc.rtsp_video_track import RTSPVideoTrack
-from modules.video_source import get_reader
+from modules.video.video_source import get_reader
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +85,19 @@ class WebRTCGateway:
 
     async def start(self):
         # 設為 WebRTC Track（取得現有畫面）
-        self.pc.addTrack(RTSPVideoTrack(get_reader()))
+        reader = get_reader(self.camera_id)
+        if reader is None:
+            await self.signaling.send({
+                "type": "error",
+                "message": f"攝影機 {self.camera_id} 無法使用"
+            })
+            return
+
+        video_track = RTSPVideoTrack(reader)
+        sender = self.pc.addTrack(video_track)
+
+        # 設定 H264 為優先編碼（較佳壓縮率與品質）
+        self._set_h264_preferred(sender)
 
         @self.pc.on("icegatheringstatechange")
         async def on_ice_gather():
@@ -127,6 +139,23 @@ class WebRTCGateway:
         ice.sdpMLineIndex = candidate.get("sdpMLineIndex")
         await self.pc.addIceCandidate(candidate=ice)
 
+    def _set_h264_preferred(self, sender):
+        """設定 H264 為優先編碼"""
+        try:
+            for t in self.pc.getTransceivers():
+                if t.sender == sender:
+                    caps = t.sender.getCapabilities("video")
+                    if caps:
+                        codecs = caps.codecs
+                        h264 = [c for c in codecs if "h264" in c.mimeType.lower()]
+                        others = [c for c in codecs if "h264" not in c.mimeType.lower()]
+                        if h264:
+                            t.setCodecPreferences(h264 + others)
+                            logger.info("H264 codec preference set")
+                    break
+        except Exception as e:
+            logger.warning("Failed to set H264 preference: %s", e)
+
     async def close(self):
         await self.pc.close()
 
@@ -135,7 +164,7 @@ class WebRTCGateway:
 # from aiortc.contrib.media import MediaPlayer
 # from aiortc.sdp import candidate_from_sdp
 # from modules.webrtc.rtsp_video_track import RTSPVideoTrack
-# from modules.video_source import get_reader
+# from modules.video.video_source import get_reader
 # import asyncio
 # import logging
 

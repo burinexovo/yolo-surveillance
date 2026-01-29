@@ -8,7 +8,7 @@ from typing import Optional
 
 import numpy as np
 
-from modules.video_recorder import VideoRecorder
+from modules.video.video_recorder import VideoRecorder
 import logging
 
 logger = logging.getLogger(__name__)

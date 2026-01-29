@@ -1,4 +1,4 @@
-from modules.audio_alert import init_audio, play_alert_async
+from modules.notifications.audio_alert import init_audio, play_alert_async
 import time
 import os
 import warnings

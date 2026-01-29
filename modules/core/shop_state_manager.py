@@ -59,7 +59,7 @@ class ShopStateManager:
     def _get_db(self):
         """延遲載入 visitor_db 避免循環引用"""
         if self._db is None:
-            from modules.visitor_db import visitor_db
+            from modules.storage.visitor_db import visitor_db
             self._db = visitor_db
         return self._db
 

@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 import cv2
 
-from modules.cloudflare_r2 import CloudflareR2, R2Config
+from modules.storage.cloudflare_r2 import CloudflareR2, R2Config
 from utils.r2_keys import make_datetime_key
 
 load_dotenv()
