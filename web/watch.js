@@ -1,15 +1,135 @@
-// web/client.js
-console.log("✅ client.js VERSION = 2025-12-31 01:05");
+// web/watch.js
+console.log("✅ watch.js VERSION = 2026-01-29 04:00");
+
+// === 主題切換 ===
+const THEME_KEY = "watch-theme";
+
+function initTheme() {
+  const saved = localStorage.getItem(THEME_KEY);
+  const theme = saved === "dark" ? "dark" : "light";
+  applyTheme(theme);
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  document.documentElement.classList.remove("light-theme", "dark-theme");
+  document.documentElement.classList.add(theme + "-theme");
+  document.body.classList.remove("light-theme", "dark-theme");
+  document.body.classList.add(theme + "-theme");
+
+  const btn = document.getElementById("themeToggle");
+  if (btn) {
+    btn.textContent = theme === "dark" ? "☀️" : "🌙";
+  }
+  localStorage.setItem(THEME_KEY, theme);
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme") || "light";
+  applyTheme(current === "dark" ? "light" : "dark");
+}
 
 // === 1. 一些設定 ===
 let hasVideo = false;
 const params = new URLSearchParams(window.location.search);
-const token = params.get("token");
+let token = params.get("token") || localStorage.getItem("pin_token");
 
-if (!token) {
-  alert("缺少觀看憑證");
-  throw new Error("missing token");
-}
+const API_BASE = "/api/dashboard";
+
+// === PIN 登入模組 ===
+const pinLogin = {
+  els: {
+    overlay: null,
+    form: null,
+    input: null,
+    submit: null,
+    error: null,
+  },
+
+  init() {
+    this.els = {
+      overlay: document.getElementById("loginOverlay"),
+      form: document.getElementById("pinForm"),
+      input: document.getElementById("pinInput"),
+      submit: document.getElementById("pinSubmit"),
+      error: document.getElementById("loginError"),
+    };
+
+    if (this.els.form) {
+      this.els.form.addEventListener("submit", (e) => this.handleSubmit(e));
+    }
+  },
+
+  show() {
+    if (this.els.overlay) {
+      this.els.overlay.classList.remove("hidden");
+      this.els.input?.focus();
+    }
+  },
+
+  hide() {
+    if (this.els.overlay) {
+      this.els.overlay.classList.add("hidden");
+    }
+  },
+
+  showError(msg) {
+    if (this.els.error) {
+      this.els.error.textContent = msg;
+      this.els.error.classList.remove("hidden");
+    }
+  },
+
+  hideError() {
+    if (this.els.error) {
+      this.els.error.classList.add("hidden");
+    }
+  },
+
+  async handleSubmit(e) {
+    e.preventDefault();
+    this.hideError();
+
+    const pin = this.els.input.value.trim();
+    if (!pin) {
+      this.showError("請輸入 PIN 碼");
+      return;
+    }
+
+    this.els.submit.disabled = true;
+    this.els.submit.textContent = "驗證中...";
+
+    try {
+      const res = await fetch(`${API_BASE}/pin-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin }),
+      });
+
+      const data = await res.json();
+
+      if (data.success && data.token) {
+        // 儲存 Token 到 sessionStorage
+        localStorage.setItem("pin_token", data.token);
+        token = data.token;
+
+        // 隱藏登入畫面，初始化 WebRTC
+        this.hide();
+        initWatch();
+      } else {
+        this.showError(data.message || "登入失敗");
+        this.els.input.value = "";
+        this.els.input.focus();
+      }
+    } catch (err) {
+      console.error("PIN login error:", err);
+      this.showError("網路錯誤，請稍後再試");
+    } finally {
+      this.els.submit.disabled = false;
+      this.els.submit.textContent = "登入";
+    }
+  },
+};
 
 // 根據 http/https 自動組成 ws/wss
 const WS_URL =
@@ -280,29 +400,46 @@ function connectWebSocket() {
 //   return await res.json(); // { ok, uid, scope }
 // }
 
-// === 7. 頁面載入時自動連線 ===
+// === 7. 初始化 WebRTC 連線 ===
+
+async function initWatch() {
+  try {
+    showLoading("建立即時連線中…");
+    const rtcConfig = await getRtcConfigOrThrow();
+    console.log("rtc-config ok:", rtcConfig);
+    // ✅ 到這裡，才開始 WebRTC / WebSocket
+    createPeerConnection(rtcConfig);
+    connectWebSocket();
+  } catch (e) {
+    console.error(e);
+    // Token 無效，清除並顯示登入畫面
+    localStorage.removeItem("pin_token");
+    token = null;
+    hideLoading();
+    pinLogin.show();
+  }
+}
+
+// === 8. 頁面載入時自動連線 ===
 
 window.addEventListener("load", () => {
-  (async () => {
-    try {
-      showLoading("建立即時連線中…");
-      // const data = await verifyToken(token);
-      // console.log("token ok:", data);
-      const rtcConfig = await getRtcConfigOrThrow();
-      console.log("rtc-config ok:", rtcConfig);
-      // ✅ 到這裡，才開始 WebRTC / WebSocket
-      createPeerConnection(rtcConfig);
-      connectWebSocket();
+  // 初始化主題
+  initTheme();
+  document.getElementById("themeToggle")?.addEventListener("click", toggleTheme);
 
-    } catch (e) {
-      console.error(e);
-      disableWatchUI();
-      alert("觀看連結已失效或過期");
-    }
-  })();
+  // 初始化 PIN 登入
+  pinLogin.init();
+
+  if (token) {
+    // 有 Token，嘗試連線
+    initWatch();
+  } else {
+    // 沒有 Token，顯示 PIN 登入
+    pinLogin.show();
+  }
 });
 
-// === 8. 手動重新連線按鈕 ===
+// === 9. 手動重新連線按鈕 ===
 
 reconnectBtn.addEventListener("click", async () => {
   try {
@@ -324,9 +461,11 @@ reconnectBtn.addEventListener("click", async () => {
 
   } catch (e) {
     console.error(e);
-    disableWatchUI();
+    // Token 無效，清除並顯示登入畫面
+    localStorage.removeItem("pin_token");
+    token = null;
     hideLoading();
-    alert("觀看連結已失效或過期");
+    pinLogin.show();
   }
 });
 

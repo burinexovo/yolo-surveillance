@@ -3,14 +3,94 @@ console.log("Dashboard loaded");
 
 // === 設定 ===
 const params = new URLSearchParams(window.location.search);
-const token = params.get("token");
-
-if (!token) {
-    alert("缺少訪問憑證");
-    throw new Error("missing token");
-}
+let token = params.get("token") || localStorage.getItem("pin_token");
 
 const API_BASE = "/api/dashboard";
+
+// === PIN 登入模組 ===
+const pinLogin = {
+    els: {
+        overlay: null,
+        form: null,
+        input: null,
+        submit: null,
+        error: null,
+    },
+
+    init() {
+        this.els = {
+            overlay: document.getElementById("loginOverlay"),
+            form: document.getElementById("pinForm"),
+            input: document.getElementById("pinInput"),
+            submit: document.getElementById("pinSubmit"),
+            error: document.getElementById("loginError"),
+        };
+
+        this.els.form.addEventListener("submit", (e) => this.handleSubmit(e));
+    },
+
+    show() {
+        this.els.overlay.classList.remove("hidden");
+        this.els.input.focus();
+    },
+
+    hide() {
+        this.els.overlay.classList.add("hidden");
+    },
+
+    showError(msg) {
+        this.els.error.textContent = msg;
+        this.els.error.classList.remove("hidden");
+    },
+
+    hideError() {
+        this.els.error.classList.add("hidden");
+    },
+
+    async handleSubmit(e) {
+        e.preventDefault();
+        this.hideError();
+
+        const pin = this.els.input.value.trim();
+        if (!pin) {
+            this.showError("請輸入 PIN 碼");
+            return;
+        }
+
+        this.els.submit.disabled = true;
+        this.els.submit.textContent = "驗證中...";
+
+        try {
+            const res = await fetch(`${API_BASE}/pin-login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ pin }),
+            });
+
+            const data = await res.json();
+
+            if (data.success && data.token) {
+                // 儲存 Token 到 sessionStorage
+                localStorage.setItem("pin_token", data.token);
+                token = data.token;
+
+                // 隱藏登入畫面，初始化 Dashboard
+                this.hide();
+                initDashboard();
+            } else {
+                this.showError(data.message || "登入失敗");
+                this.els.input.value = "";
+                this.els.input.focus();
+            }
+        } catch (err) {
+            console.error("PIN login error:", err);
+            this.showError("網路錯誤，請稍後再試");
+        } finally {
+            this.els.submit.disabled = false;
+            this.els.submit.textContent = "登入";
+        }
+    },
+};
 
 // === DOM 元素 ===
 const elements = {
@@ -314,29 +394,305 @@ elements.refreshBtn.addEventListener("click", refreshAll);
 
 document.getElementById("themeToggle").addEventListener("click", toggleTheme);
 
+// 即時畫面按鈕 - 開新分頁
+document.getElementById("watchBtn")?.addEventListener("click", () => {
+    window.open("/watch", "_blank");
+});
+
+// === 錄影回放模組 ===
+const recording = {
+    recordings: [],
+    events: [],
+    currentIndex: -1,
+
+    // DOM 元素
+    els: {
+        dateInput: null,
+        summary: null,
+        timeline: null,
+        video: null,
+        clipInfo: null,
+        prevBtn: null,
+        nextBtn: null,
+        clipsList: null,
+    },
+
+    init() {
+        this.els = {
+            dateInput: document.getElementById("recordingDate"),
+            summary: document.getElementById("recordingSummary"),
+            timeline: document.getElementById("timelineTrack"),
+            video: document.getElementById("videoPlayer"),
+            clipInfo: document.getElementById("clipInfo"),
+            prevBtn: document.getElementById("prevClip"),
+            nextBtn: document.getElementById("nextClip"),
+            clipsList: document.getElementById("clipsList"),
+        };
+
+        // 設定日期選擇器預設值為今天
+        const today = new Date().toISOString().split("T")[0];
+        this.els.dateInput.value = today;
+
+        // 綁定事件
+        this.els.dateInput.addEventListener("change", () => this.loadDate());
+        this.els.prevBtn.addEventListener("click", () => this.playPrev());
+        this.els.nextBtn.addEventListener("click", () => this.playNext());
+        this.els.video.addEventListener("ended", () => this.onVideoEnded());
+
+        // 載入今天的錄影
+        this.loadDate();
+    },
+
+    async loadDate() {
+        const dateValue = this.els.dateInput.value;
+        if (!dateValue) return;
+
+        const dateStr = dateValue.replace(/-/g, "");
+
+        try {
+            // 並行載入錄影列表和事件
+            const [recRes, evtRes] = await Promise.all([
+                fetchAPI("/recordings", { date: dateStr }),
+                fetchAPI("/events", { date: dateStr }),
+            ]);
+
+            this.recordings = recRes.recordings || [];
+            this.events = evtRes.events || [];
+            this.currentIndex = -1;
+
+            // 更新摘要
+            if (this.recordings.length > 0) {
+                this.els.summary.textContent =
+                    `${this.recordings.length} 段錄影，共 ${recRes.total_size_mb} MB`;
+            } else {
+                this.els.summary.textContent = "該日期無錄影";
+            }
+
+            // 渲染時間線和片段列表
+            this.renderTimeline();
+            this.renderClipsList();
+            this.updateNavButtons();
+
+            // 重設播放器
+            this.els.video.src = "";
+            this.els.clipInfo.textContent = "點擊片段播放";
+
+        } catch (e) {
+            console.error("loadDate error:", e);
+            this.els.summary.textContent = "載入失敗";
+        }
+    },
+
+    renderTimeline() {
+        this.els.timeline.innerHTML = "";
+
+        // 渲染錄影片段
+        this.recordings.forEach((rec, idx) => {
+            const startTime = new Date(rec.start_time);
+            const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
+            const duration = rec.duration_seconds / 60; // 轉換為分鐘
+
+            // 計算位置和寬度 (一天 1440 分鐘)
+            const left = (startMinutes / 1440) * 100;
+            const width = Math.max((duration / 1440) * 100, 0.2); // 最小寬度
+
+            const clip = document.createElement("div");
+            clip.className = "timeline-clip";
+            clip.style.left = `${left}%`;
+            clip.style.width = `${width}%`;
+            clip.title = `${startTime.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" })}`;
+            clip.dataset.index = idx;
+            clip.addEventListener("click", () => this.playClip(idx));
+
+            this.els.timeline.appendChild(clip);
+        });
+
+        // 渲染事件標記
+        this.events.forEach((evt) => {
+            const evtTime = new Date(evt.entry_time);
+            const evtMinutes = evtTime.getHours() * 60 + evtTime.getMinutes();
+            const left = (evtMinutes / 1440) * 100;
+
+            const marker = document.createElement("div");
+            marker.className = "timeline-event";
+            marker.style.left = `${left}%`;
+            marker.dataset.time = evtTime.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
+            marker.dataset.eventId = evt.id;
+            marker.title = `訪客入店: ${marker.dataset.time}`;
+            marker.addEventListener("click", () => this.jumpToEvent(evt));
+
+            this.els.timeline.appendChild(marker);
+        });
+    },
+
+    renderClipsList() {
+        this.els.clipsList.innerHTML = "";
+
+        if (this.recordings.length === 0) {
+            this.els.clipsList.innerHTML = '<div class="no-clips">該日期無錄影</div>';
+            return;
+        }
+
+        this.recordings.forEach((rec, idx) => {
+            const startTime = new Date(rec.start_time);
+            const timeStr = startTime.toLocaleTimeString("zh-TW", {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+            });
+
+            const item = document.createElement("div");
+            item.className = "clip-item";
+            item.textContent = timeStr;
+            item.dataset.index = idx;
+            item.addEventListener("click", () => this.playClip(idx));
+
+            this.els.clipsList.appendChild(item);
+        });
+    },
+
+    playClip(index) {
+        if (index < 0 || index >= this.recordings.length) return;
+
+        const rec = this.recordings[index];
+        const dateStr = this.els.dateInput.value.replace(/-/g, "");
+        const videoUrl = `${API_BASE}/recordings/${dateStr}/${rec.filename}?token=${encodeURIComponent(token)}`;
+
+        this.els.video.src = videoUrl;
+        this.els.video.play().catch(e => console.log("Auto-play blocked:", e));
+
+        this.currentIndex = index;
+        this.updateActiveStates();
+        this.updateNavButtons();
+
+        // 更新播放資訊
+        const startTime = new Date(rec.start_time);
+        const timeStr = startTime.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
+        this.els.clipInfo.textContent = `${timeStr} (${index + 1}/${this.recordings.length})`;
+    },
+
+    updateActiveStates() {
+        // 更新時間線高亮
+        this.els.timeline.querySelectorAll(".timeline-clip").forEach((el, idx) => {
+            el.classList.toggle("active", idx === this.currentIndex);
+        });
+
+        // 更新片段列表高亮
+        this.els.clipsList.querySelectorAll(".clip-item").forEach((el, idx) => {
+            el.classList.toggle("active", idx === this.currentIndex);
+        });
+    },
+
+    updateNavButtons() {
+        this.els.prevBtn.disabled = this.currentIndex <= 0;
+        this.els.nextBtn.disabled = this.currentIndex < 0 || this.currentIndex >= this.recordings.length - 1;
+    },
+
+    playPrev() {
+        if (this.currentIndex > 0) {
+            this.playClip(this.currentIndex - 1);
+        }
+    },
+
+    playNext() {
+        if (this.currentIndex < this.recordings.length - 1) {
+            this.playClip(this.currentIndex + 1);
+        }
+    },
+
+    onVideoEnded() {
+        // 自動播放下一段
+        if (this.currentIndex < this.recordings.length - 1) {
+            this.playNext();
+        }
+    },
+
+    jumpToEvent(evt) {
+        const evtTime = new Date(evt.entry_time);
+
+        // 找到包含此事件的錄影片段
+        let targetIndex = -1;
+        let seekTime = 0;
+
+        for (let i = 0; i < this.recordings.length; i++) {
+            const rec = this.recordings[i];
+            const recStart = new Date(rec.start_time);
+            const recEnd = new Date(recStart.getTime() + rec.duration_seconds * 1000);
+
+            if (evtTime >= recStart && evtTime <= recEnd) {
+                targetIndex = i;
+                seekTime = (evtTime - recStart) / 1000;
+                break;
+            }
+        }
+
+        if (targetIndex === -1) {
+            // 如果事件不在任何錄影範圍內，找最接近的錄影
+            let minDiff = Infinity;
+            for (let i = 0; i < this.recordings.length; i++) {
+                const rec = this.recordings[i];
+                const recStart = new Date(rec.start_time);
+                const diff = Math.abs(evtTime - recStart);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    targetIndex = i;
+                }
+            }
+        }
+
+        if (targetIndex >= 0) {
+            this.playClip(targetIndex);
+
+            // 如果有精確時間點，seek 到該位置
+            if (seekTime > 0) {
+                this.els.video.addEventListener("loadedmetadata", () => {
+                    if (seekTime < this.els.video.duration) {
+                        this.els.video.currentTime = seekTime;
+                    }
+                }, { once: true });
+            }
+        }
+    },
+};
+
+// === Dashboard 初始化函式 ===
+async function initDashboard() {
+    try {
+        await verifyDashboardAuth();
+        // 驗證成功，載入資料
+        refreshAll();
+
+        // 初始化錄影回放模組
+        recording.init();
+
+        // 每 30 秒自動更新即時狀態
+        setInterval(updateRealtime, 30000);
+
+        // 每 5 分鐘更新圖表
+        setInterval(() => {
+            updateHourlyChart();
+            updateDailyChart();
+            updateSummary();
+        }, 300000);
+    } catch (e) {
+        console.error("Dashboard auth failed:", e);
+        // Token 無效，清除並顯示登入畫面
+        localStorage.removeItem("pin_token");
+        token = null;
+        pinLogin.show();
+    }
+}
+
 // === 初始化 ===
 window.addEventListener("load", () => {
     initTheme();
+    pinLogin.init();
 
-    (async () => {
-        try {
-            await verifyDashboardAuth();
-            // 驗證成功，載入資料
-            refreshAll();
-
-            // 每 30 秒自動更新即時狀態
-            setInterval(updateRealtime, 30000);
-
-            // 每 5 分鐘更新圖表
-            setInterval(() => {
-                updateHourlyChart();
-                updateDailyChart();
-                updateSummary();
-            }, 300000);
-        } catch (e) {
-            console.error("Dashboard auth failed:", e);
-            disableDashboardUI();
-            alert("訪問連結已失效或過期");
-        }
-    })();
+    if (token) {
+        // 有 Token，嘗試驗證
+        initDashboard();
+    } else {
+        // 沒有 Token，顯示 PIN 登入
+        pinLogin.show();
+    }
 });

@@ -142,6 +142,7 @@ class YoloRuntime:
             save_raw=True,
             save_annot=False,
             fps=30,
+            segment_minutes=30,
         ))
         self.rec.start()
 

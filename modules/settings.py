@@ -95,6 +95,11 @@ class Settings(BaseSettings):
     internal_token: Optional[str] = None
 
     # ======================
+    # Dashboard PIN
+    # ======================
+    dashboard_pin: Optional[str] = None
+
+    # ======================
     # WebRTC STUN/TURN
     # ======================
     STUN_URL1: Optional[str] = None

@@ -4,13 +4,34 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>店鋪儀表板 - TCM Shop</title>
-		<link rel="stylesheet" href="/web/dashboard.css?v=20260128_1050" />
+		<link rel="stylesheet" href="/web/dashboard.css?v=20260129_0600" />
 		<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 	</head>
 	<body>
+		<!-- PIN 登入畫面 -->
+		<div id="loginOverlay" class="login-overlay hidden">
+			<div class="login-card">
+				<h2>元壽蔘藥行儀表板登入</h2>
+				<p class="login-subtitle">請輸入 PIN 碼</p>
+				<form id="pinForm">
+					<input
+						type="password"
+						id="pinInput"
+						maxlength="10"
+						placeholder="PIN 碼"
+						autocomplete="off"
+						inputmode="numeric"
+					/>
+					<button type="submit" id="pinSubmit">登入</button>
+				</form>
+				<p id="loginError" class="login-error hidden"></p>
+			</div>
+		</div>
+
 		<header>
 			<h1>元壽蔘藥行儀表板</h1>
 			<div class="header-actions">
+				<button id="watchBtn" class="watch-btn" title="開啟即時畫面">即時畫面</button>
 				<button id="themeToggle" title="切換主題">🌙</button>
 				<select id="rangeSelect">
 					<option value="7d" selected>最近 7 天</option>
@@ -91,12 +112,59 @@
 					<canvas id="dailyChart"></canvas>
 				</div>
 			</section>
+
+			<!-- 錄影回放區域 -->
+			<section class="recording-section">
+				<div class="recording-header">
+					<h3>錄影回放</h3>
+					<div class="recording-controls">
+						<input type="date" id="recordingDate" />
+						<span class="recording-summary" id="recordingSummary">-</span>
+					</div>
+				</div>
+
+				<!-- 時間線 -->
+				<div class="timeline-container">
+					<div class="timeline-labels">
+						<span>00:00</span>
+						<span>06:00</span>
+						<span>12:00</span>
+						<span>18:00</span>
+						<span>24:00</span>
+					</div>
+					<div class="timeline-track" id="timelineTrack">
+						<!-- 錄影片段和事件標記由 JS 動態插入 -->
+					</div>
+				</div>
+
+				<!-- 影片播放器 -->
+				<div class="player-container">
+					<video id="videoPlayer" controls preload="metadata">
+						<source src="" type="video/mp4" />
+						您的瀏覽器不支援 HTML5 影片播放
+					</video>
+					<div class="player-info">
+						<button id="prevClip" disabled>◀ 上一段</button>
+						<span id="clipInfo">尚未選擇錄影</span>
+						<button id="nextClip" disabled>下一段 ▶</button>
+					</div>
+				</div>
+
+				<!-- 錄影片段列表 -->
+				<div class="clips-list-container">
+					<h4>錄影片段</h4>
+					<div class="clips-list" id="clipsList">
+						<!-- 片段由 JS 動態插入 -->
+						<div class="no-clips">選擇日期以查看錄影</div>
+					</div>
+				</div>
+			</section>
 		</main>
 
 		<footer>
 			<p>最後更新: <span id="lastUpdate">-</span></p>
 		</footer>
 
-		<script src="/web/dashboard.js?v=20260128_1050"></script>
+		<script src="/web/dashboard.js?v=20260129_0600"></script>
 	</body>
 </html>

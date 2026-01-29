@@ -15,6 +15,7 @@ from routers.state_routes import router as state_router
 from routers.auth_routes import router as auth_router
 from routers.web_routes import router as watch_router
 from routers.dashboard_routes import router as dashboard_router
+from routers.recording_routes import router as recording_router
 from modules.signaling.router import router as signaling_router
 
 from utils.logging import setup_logging
@@ -72,6 +73,7 @@ app.include_router(state_router)
 app.include_router(auth_router)
 app.include_router(watch_router)
 app.include_router(dashboard_router)
+app.include_router(recording_router)
 app.include_router(signaling_router)
 
 

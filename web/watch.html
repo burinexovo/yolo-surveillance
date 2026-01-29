@@ -1,0 +1,392 @@
+<!-- web/watch.html -->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>店鋪即時畫面 - TCM Shop</title>
+		<style>
+			/* Light Mode (預設) */
+			:root,
+			body {
+				--bg-primary: #f0f4f8;
+				--bg-secondary: #ffffff;
+				--bg-card: #ffffff;
+				--text-primary: #1a1a2e;
+				--text-secondary: #64748b;
+				--border-color: #e2e8f0;
+				--btn-bg: #f1f5f9;
+				--btn-bg-hover: #e2e8f0;
+				--shadow-color: rgba(0, 0, 0, 0.08);
+				--shadow-lg: rgba(0, 0, 0, 0.12);
+				--accent-blue: #3b82f6;
+				--accent-green: #10b981;
+				--accent-red: #ef4444;
+				--gradient-blue: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+				--gradient-cyan: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+			}
+
+			/* Dark Mode */
+			html[data-theme="dark"],
+			html.dark-theme,
+			body.dark-theme {
+				--bg-primary: #0f172a;
+				--bg-secondary: #1e293b;
+				--bg-card: #1e293b;
+				--text-primary: #f1f5f9;
+				--text-secondary: #94a3b8;
+				--border-color: #334155;
+				--btn-bg: #334155;
+				--btn-bg-hover: #475569;
+				--shadow-color: rgba(0, 0, 0, 0.3);
+				--shadow-lg: rgba(0, 0, 0, 0.4);
+			}
+
+			* {
+				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
+			}
+
+			body {
+				font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+				background: var(--bg-primary);
+				color: var(--text-primary);
+				min-height: 100vh;
+				display: flex;
+				flex-direction: column;
+			}
+
+			/* Header */
+			header {
+				background: var(--bg-secondary);
+				padding: 16px 24px;
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				border-bottom: 1px solid var(--border-color);
+				backdrop-filter: blur(10px);
+				z-index: 50;
+			}
+
+			header h1 {
+				font-size: 18px;
+				font-weight: 700;
+				background: var(--gradient-cyan);
+				-webkit-background-clip: text;
+				-webkit-text-fill-color: transparent;
+				background-clip: text;
+			}
+
+			.header-actions {
+				display: flex;
+				gap: 12px;
+				align-items: center;
+			}
+
+			#status {
+				font-size: 13px;
+				color: var(--text-secondary);
+				padding: 6px 12px;
+				background: var(--bg-primary);
+				border-radius: 20px;
+			}
+
+			#status.connected {
+				color: var(--accent-green);
+			}
+
+			#status.error {
+				color: var(--accent-red);
+			}
+
+			button {
+				padding: 10px 18px;
+				background: var(--btn-bg);
+				border: 1px solid var(--border-color);
+				border-radius: 10px;
+				color: var(--text-primary);
+				cursor: pointer;
+				font-size: 14px;
+				font-weight: 500;
+				transition: all 0.2s ease;
+			}
+
+			button:hover {
+				background: var(--btn-bg-hover);
+				transform: translateY(-1px);
+			}
+
+			button:active {
+				transform: translateY(0);
+			}
+
+			#reconnectBtn {
+				background: var(--accent-blue);
+				color: white;
+				border: none;
+			}
+
+			#reconnectBtn:hover {
+				background: #2563eb;
+				box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+			}
+
+			#themeToggle {
+				font-size: 18px;
+				padding: 8px 12px;
+				border-radius: 50%;
+				width: 40px;
+				height: 40px;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+
+			/* Main - 影片區域 */
+			main {
+				flex: 1;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				background: #000;
+				position: relative;
+				padding: 16px;
+			}
+
+			video {
+				max-width: 100%;
+				max-height: 100%;
+				background: #000;
+				border-radius: 12px;
+				box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+			}
+
+			/* Loading 遮罩 */
+			#loadingOverlay {
+				position: absolute;
+				inset: 0;
+				background: rgba(0, 0, 0, 0.9);
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				z-index: 10;
+			}
+
+			#loadingOverlay.hidden {
+				display: none;
+			}
+
+			.spinner {
+				width: 48px;
+				height: 48px;
+				border: 4px solid rgba(255, 255, 255, 0.15);
+				border-top-color: var(--accent-blue);
+				border-radius: 50%;
+				animation: spin 1s linear infinite;
+			}
+
+			.loading-text {
+				margin-top: 16px;
+				font-size: 14px;
+				color: rgba(255, 255, 255, 0.8);
+			}
+
+			@keyframes spin {
+				to {
+					transform: rotate(360deg);
+				}
+			}
+
+			/* PIN 登入畫面 */
+			#loginOverlay {
+				position: fixed;
+				inset: 0;
+				background: var(--bg-primary);
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				z-index: 1000;
+			}
+
+			#loginOverlay.hidden {
+				display: none;
+			}
+
+			.login-card {
+				background: var(--bg-card);
+				border: 1px solid var(--border-color);
+				border-radius: 20px;
+				padding: 40px;
+				width: 100%;
+				max-width: 360px;
+				text-align: center;
+				box-shadow: 0 8px 32px var(--shadow-lg);
+			}
+
+			.login-card h2 {
+				font-size: 24px;
+				font-weight: 700;
+				margin-bottom: 8px;
+				background: var(--gradient-cyan);
+				-webkit-background-clip: text;
+				-webkit-text-fill-color: transparent;
+				background-clip: text;
+			}
+
+			.login-subtitle {
+				color: var(--text-secondary);
+				font-size: 14px;
+				margin-bottom: 28px;
+			}
+
+			#pinForm {
+				display: flex;
+				flex-direction: column;
+				gap: 16px;
+			}
+
+			#pinInput {
+				padding: 16px 20px;
+				font-size: 20px;
+				text-align: center;
+				letter-spacing: 8px;
+				background: var(--bg-primary);
+				border: 2px solid var(--border-color);
+				border-radius: 12px;
+				color: var(--text-primary);
+				transition: border-color 0.2s ease;
+			}
+
+			#pinInput:focus {
+				outline: none;
+				border-color: var(--accent-blue);
+			}
+
+			#pinInput::placeholder {
+				letter-spacing: normal;
+				font-size: 14px;
+			}
+
+			#pinSubmit {
+				padding: 16px 24px;
+				font-size: 16px;
+				font-weight: 600;
+				background: var(--accent-blue);
+				color: white;
+				border: none;
+				border-radius: 12px;
+				cursor: pointer;
+				transition: all 0.2s ease;
+			}
+
+			#pinSubmit:hover {
+				background: #2563eb;
+				transform: translateY(-2px);
+				box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+			}
+
+			#pinSubmit:disabled {
+				opacity: 0.6;
+				cursor: not-allowed;
+				transform: none;
+			}
+
+			.login-error {
+				color: var(--accent-red);
+				font-size: 14px;
+				margin-top: 16px;
+			}
+
+			.login-error.hidden {
+				display: none;
+			}
+
+			/* Footer */
+			footer {
+				background: var(--bg-secondary);
+				padding: 12px 24px;
+				text-align: center;
+				border-top: 1px solid var(--border-color);
+				font-size: 12px;
+				color: var(--text-secondary);
+			}
+
+			/* Responsive */
+			@media (max-width: 640px) {
+				header {
+					flex-direction: column;
+					gap: 12px;
+					padding: 12px 16px;
+				}
+
+				.header-actions {
+					width: 100%;
+					justify-content: space-between;
+				}
+
+				main {
+					padding: 8px;
+				}
+
+				video {
+					border-radius: 8px;
+				}
+
+				.login-card {
+					margin: 16px;
+					padding: 28px;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<!-- PIN 登入畫面 -->
+		<div id="loginOverlay" class="hidden">
+			<div class="login-card">
+				<h2>即時畫面登入</h2>
+				<p class="login-subtitle">請輸入 PIN 碼</p>
+				<form id="pinForm">
+					<input
+						type="password"
+						id="pinInput"
+						maxlength="10"
+						placeholder="PIN 碼"
+						autocomplete="off"
+						inputmode="numeric"
+					/>
+					<button type="submit" id="pinSubmit">登入</button>
+				</form>
+				<p id="loginError" class="login-error hidden"></p>
+			</div>
+		</div>
+
+		<header>
+			<h1>元壽蔘藥行即時畫面</h1>
+			<div class="header-actions">
+				<span id="status">初始化中...</span>
+				<button id="themeToggle" title="切換主題">🌙</button>
+				<button id="reconnectBtn">重新連線</button>
+			</div>
+		</header>
+
+		<main>
+			<!-- loading 遮罩 -->
+			<div id="loadingOverlay">
+				<div class="spinner"></div>
+				<div class="loading-text">連線中…</div>
+			</div>
+
+			<!-- WebRTC 的遠端影像會顯示在這裡 -->
+			<video id="remoteVideo" muted autoplay playsinline></video>
+		</main>
+
+		<footer>
+			<p>WebRTC 即時串流</p>
+		</footer>
+
+		<script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+		<script src="/web/watch.js?v=20260129_0600"></script>
+	</body>
+</html>

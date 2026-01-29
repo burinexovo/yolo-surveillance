@@ -27,6 +27,12 @@ class DailyData:
     count: int
 
 
+@dataclass
+class EntryRecord:
+    id: int
+    entry_time: datetime
+
+
 class VisitorDB:
     """
     SQLite 訪客記錄資料庫管理器
@@ -199,6 +205,27 @@ class VisitorDB:
             "peak_day": {"date": peak_day.date, "count": peak_day.count} if peak_day else None,
             "peak_hour": peak_hour,
         }
+
+    def get_entries_by_date(self, target_date: date) -> List[EntryRecord]:
+        """取得指定日期的所有入店事件"""
+        start = datetime.combine(target_date, datetime.min.time())
+        end = start + timedelta(days=1)
+
+        with self._get_conn() as conn:
+            rows = conn.execute("""
+                SELECT id, entry_time
+                FROM visitor_entries
+                WHERE entry_time >= ? AND entry_time < ?
+                ORDER BY entry_time
+            """, (start.isoformat(), end.isoformat())).fetchall()
+
+        return [
+            EntryRecord(
+                id=row["id"],
+                entry_time=datetime.fromisoformat(row["entry_time"])
+            )
+            for row in rows
+        ]
 
 
 # 全域單例

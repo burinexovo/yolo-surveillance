@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import time
+import secrets
 import logging
 from datetime import date, timedelta
 from typing import Optional, Literal
@@ -22,6 +23,10 @@ router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 _token_cache: dict[str, float] = {}  # token → expiry_timestamp
 CACHE_TTL = 300  # 5 分鐘
 
+# === PIN 登入產生的 Token 快取 ===
+_pin_token_cache: dict[str, float] = {}  # token → expiry_timestamp
+PIN_TOKEN_TTL = 86400  # 24 小時
+
 
 def _get_settings(request: Request):
     settings = getattr(request.app.state, "settings", None)
@@ -33,12 +38,17 @@ def _get_settings(request: Request):
 async def verify_token(request: Request, token: str = Query(..., min_length=10)):
     """
     驗證 dashboard token，帶本地快取。
-    - 快取命中且未過期 → 直接放行
+    - PIN Token 快取命中且未過期 → 直接放行
+    - Workers Token 快取命中且未過期 → 直接放行
     - 否則呼叫 Workers 驗證，成功後存入快取
     """
     now = time.time()
 
-    # 檢查快取
+    # 優先檢查 PIN Token 快取
+    if token in _pin_token_cache and _pin_token_cache[token] > now:
+        return token
+
+    # 檢查 Workers Token 快取
     if token in _token_cache and _token_cache[token] > now:
         return token
 
@@ -67,6 +77,52 @@ async def verify_token(request: Request, token: str = Query(..., min_length=10))
         raise HTTPException(status_code=403, detail="token invalid")
 
     raise HTTPException(status_code=502, detail="Workers dashboard auth failed")
+
+
+# === PIN 登入 ===
+
+class PinLoginRequest(BaseModel):
+    pin: str
+
+
+class PinLoginResponse(BaseModel):
+    success: bool
+    token: Optional[str] = None
+    expires_in: Optional[int] = None
+    message: Optional[str] = None
+
+
+@router.post("/pin-login", response_model=PinLoginResponse)
+async def pin_login(request: Request, body: PinLoginRequest):
+    """
+    使用 PIN 碼登入 Dashboard，回傳 Token。
+    """
+    settings = _get_settings(request)
+
+    # 檢查是否有設定 PIN
+    if not settings.dashboard_pin:
+        logger.warning("PIN login attempted but DASHBOARD_PIN not configured")
+        raise HTTPException(status_code=503, detail="PIN login not configured")
+    
+    # 驗證 PIN
+    if body.pin != settings.dashboard_pin:
+        logger.info("PIN login failed: incorrect PIN")
+        return PinLoginResponse(
+            success=False,
+            message="PIN 碼錯誤",
+        )
+
+    # 產生 Token
+    token = secrets.token_urlsafe(32)
+    now = time.time()
+    _pin_token_cache[token] = now + PIN_TOKEN_TTL
+
+    logger.info("PIN login successful, token issued")
+    return PinLoginResponse(
+        success=True,
+        token=token,
+        expires_in=PIN_TOKEN_TTL,
+    )
 
 
 # === Response Models ===

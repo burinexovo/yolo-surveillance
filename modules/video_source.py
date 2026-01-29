@@ -23,8 +23,8 @@ def get_reader() -> RTSPReader:
         _reader = RTSPReader(
             RTSPReaderConfig(
                 # url=settings.rtsp_url_stream1,
-                url=settings.rtsp_url_stream2,
-                # url=settings.device_camera0,
+                # url=settings.rtsp_url_stream2,
+                url=settings.device_camera0,
                 drop_grab_n=2,
             )
         )
