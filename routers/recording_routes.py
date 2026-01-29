@@ -23,6 +23,8 @@ router = APIRouter(prefix="/api/dashboard", tags=["recordings"])
 RECORDINGS_DIR = Path(__file__).parent.parent / "recordings"
 DATE_PATTERN = re.compile(r"^\d{8}$")  # YYYYMMDD
 FILENAME_PATTERN = re.compile(r"^\d{8}_\d{6}_raw\.mp4$")  # YYYYMMDD_HHMMSS_raw.mp4
+HLS_DIR_PATTERN = re.compile(r"^\d{8}_\d{6}_raw$")  # YYYYMMDD_HHMMSS_raw (HLS 目錄)
+TS_FILE_PATTERN = re.compile(r"^seg_\d{3}\.ts$")  # seg_000.ts
 CAMERA_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,20}$")  # 安全的 camera_id
 DEFAULT_CAMERA_ID = "cam1"
 
@@ -34,6 +36,7 @@ class RecordingItem(BaseModel):
     start_time: str  # ISO format
     duration_seconds: int
     size_bytes: int
+    hls_available: bool = False  # HLS 版本是否可用
 
 
 class RecordingsResponse(BaseModel):
@@ -156,11 +159,20 @@ async def list_recordings(
         # 預設每段 60 秒（實際可從影片 metadata 取得，但這裡簡化處理）
         duration = 60
 
+        # 檢查 HLS 版本是否存在
+        hls_dir = f.with_suffix("")  # 去掉 .mp4 變成目錄名
+        hls_available = (hls_dir / "playlist.m3u8").exists()
+
+        # 只回傳有 HLS 版本的錄影
+        if not hls_available:
+            continue
+
         recordings.append(RecordingItem(
             filename=f.name,
             start_time=start_time.isoformat(),
             duration_seconds=duration,
             size_bytes=size,
+            hls_available=hls_available,
         ))
 
     return RecordingsResponse(
@@ -233,4 +245,84 @@ async def stream_recording(
         path=file_path,
         media_type="video/mp4",
         filename=filename,
+    )
+
+
+# === HLS 串流端點 ===
+
+@router.get("/recordings/{camera_id}/{date_str}/{segment_name}/playlist.m3u8")
+async def get_hls_playlist(
+    request: Request,
+    camera_id: str,
+    date_str: str,
+    segment_name: str,
+    token: str = Depends(verify_token),
+):
+    """取得 HLS 播放清單"""
+    camera_id = validate_camera_id(camera_id)
+    date_str = validate_date_param(date_str)
+
+    # 驗證 segment_name 格式
+    if not HLS_DIR_PATTERN.match(segment_name):
+        raise HTTPException(status_code=400, detail="Invalid segment name")
+
+    # 建構路徑
+    date_dir = get_recording_dir(camera_id, date_str)
+    hls_dir = date_dir / segment_name
+    playlist_path = hls_dir / "playlist.m3u8"
+
+    # 安全檢查
+    try:
+        resolved = playlist_path.resolve()
+        resolved.relative_to(RECORDINGS_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid path")
+
+    if not playlist_path.exists():
+        raise HTTPException(status_code=404, detail="HLS playlist not found")
+
+    return FileResponse(
+        path=playlist_path,
+        media_type="application/vnd.apple.mpegurl",
+        filename="playlist.m3u8",
+    )
+
+
+@router.get("/recordings/{camera_id}/{date_str}/{segment_name}/{ts_file}")
+async def get_hls_segment(
+    request: Request,
+    camera_id: str,
+    date_str: str,
+    segment_name: str,
+    ts_file: str,
+    token: str = Depends(verify_token),
+):
+    """取得 HLS 影片片段 (.ts)"""
+    camera_id = validate_camera_id(camera_id)
+    date_str = validate_date_param(date_str)
+
+    # 驗證格式
+    if not HLS_DIR_PATTERN.match(segment_name):
+        raise HTTPException(status_code=400, detail="Invalid segment name")
+    if not TS_FILE_PATTERN.match(ts_file):
+        raise HTTPException(status_code=400, detail="Invalid ts file name")
+
+    # 建構路徑
+    date_dir = get_recording_dir(camera_id, date_str)
+    ts_path = date_dir / segment_name / ts_file
+
+    # 安全檢查
+    try:
+        resolved = ts_path.resolve()
+        resolved.relative_to(RECORDINGS_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid path")
+
+    if not ts_path.exists():
+        raise HTTPException(status_code=404, detail="HLS segment not found")
+
+    return FileResponse(
+        path=ts_path,
+        media_type="video/mp2t",
+        filename=ts_file,
     )

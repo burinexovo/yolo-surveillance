@@ -67,7 +67,7 @@ def _faststart_worker(queue: Queue, enable_hls: bool = True):
 
 def _convert_to_hls(mp4_path: Path):
     """
-    將 MP4 轉換成 HLS 格式
+    將 MP4 轉換成 HLS 格式（重新編碼為 H.264）
 
     輸出結構：
     20260129_143000_raw.mp4
@@ -84,11 +84,14 @@ def _convert_to_hls(mp4_path: Path):
     playlist_path = hls_dir / "playlist.m3u8"
 
     try:
+        # 重新編碼為 H.264（瀏覽器 HLS 相容）
         result = subprocess.run(
             [
                 "ffmpeg", "-y", "-i", str(mp4_path),
-                "-c:v", "copy",          # 複製視訊 codec（不重新編碼）
-                "-c:a", "copy",          # 複製音訊 codec
+                "-c:v", "libx264",       # 轉換為 H.264
+                "-preset", "fast",       # 編碼速度（fast 平衡速度與品質）
+                "-crf", "23",            # 品質（18-28，越小越好）
+                "-c:a", "aac",           # 音訊轉 AAC
                 "-hls_time", "2",        # 每段 2 秒
                 "-hls_list_size", "0",   # 保留所有段落
                 "-hls_segment_filename", str(hls_dir / "seg_%03d.ts"),
@@ -96,13 +99,13 @@ def _convert_to_hls(mp4_path: Path):
                 str(playlist_path)
             ],
             capture_output=True,
-            timeout=120,
+            timeout=300,  # 編碼需要更多時間
         )
 
         if result.returncode == 0:
-            logger.debug("HLS 轉換完成: %s", hls_dir.name)
+            logger.info("HLS 轉換完成: %s", hls_dir.name)
         else:
-            logger.warning("HLS 轉換失敗: %s - %s", mp4_path.name, result.stderr.decode()[-200:])
+            logger.warning("HLS 轉換失敗: %s - %s", mp4_path.name, result.stderr.decode()[-500:])
 
     except subprocess.TimeoutExpired:
         logger.warning("HLS 轉換逾時: %s", mp4_path.name)
@@ -121,6 +124,7 @@ class RecorderConfig:
     segment_minutes: int = 3
     target_size: Optional[Tuple[int, int]] = (960, 540)  # (width, height)
     enable_faststart: bool = True  # 啟用 ffmpeg faststart 後處理
+    enable_hls: bool = True  # 啟用 HLS 轉換（需要 enable_faststart）
 
 
 class VideoRecorder:
@@ -151,14 +155,14 @@ class VideoRecorder:
         self._current_raw_path: Optional[Path] = None
         self._current_annot_path: Optional[Path] = None
 
-        # faststart 後處理佇列
+        # faststart + HLS 後處理佇列
         self._faststart_queue: Optional[Queue] = None
         self._faststart_thread: Optional[threading.Thread] = None
         if cfg.enable_faststart:
             self._faststart_queue = Queue()
             self._faststart_thread = threading.Thread(
                 target=_faststart_worker,
-                args=(self._faststart_queue,),
+                args=(self._faststart_queue, cfg.enable_hls),
                 daemon=True,
                 name="FaststartWorker"
             )

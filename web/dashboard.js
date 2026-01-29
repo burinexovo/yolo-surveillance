@@ -407,6 +407,7 @@ const recording = {
     events: [],
     currentIndex: -1,
     currentCameraId: "cam1",
+    hls: null,  // HLS.js 實例
 
     // DOM 元素
     els: {
@@ -598,10 +599,57 @@ const recording = {
 
         const rec = this.recordings[index];
         const dateStr = this.els.dateInput.value.replace(/-/g, "");
-        const videoUrl = `${API_BASE}/recordings/${this.currentCameraId}/${dateStr}/${rec.filename}?token=${encodeURIComponent(token)}`;
 
-        this.els.video.src = videoUrl;
-        this.els.video.play().catch(e => console.log("Auto-play blocked:", e));
+        // 清理之前的 HLS 實例
+        if (this.hls) {
+            this.hls.destroy();
+            this.hls = null;
+        }
+
+        // 優先使用 HLS（如果可用且瀏覽器支援）
+        if (rec.hls_available && Hls.isSupported()) {
+            const segmentName = rec.filename.replace(".mp4", "");
+            const hlsUrl = `${API_BASE}/recordings/${this.currentCameraId}/${dateStr}/${segmentName}/playlist.m3u8?token=${encodeURIComponent(token)}`;
+
+            this.hls = new Hls({
+                xhrSetup: (xhr, url) => {
+                    // 確保所有 HLS 請求都帶有 token
+                    if (!url.includes("token=")) {
+                        const separator = url.includes("?") ? "&" : "?";
+                        const newUrl = `${url}${separator}token=${encodeURIComponent(token)}`;
+                        xhr.open("GET", newUrl, true);
+                    }
+                }
+            });
+
+            // 錯誤處理
+            this.hls.on(Hls.Events.ERROR, (event, data) => {
+                console.error("HLS 錯誤:", data.type, data.details, data);
+                if (data.fatal) {
+                    console.error("HLS 致命錯誤，嘗試回退到 MP4");
+                    this.hls.destroy();
+                    this.hls = null;
+                    // 回退到 MP4
+                    const videoUrl = `${API_BASE}/recordings/${this.currentCameraId}/${dateStr}/${rec.filename}?token=${encodeURIComponent(token)}`;
+                    this.els.video.src = videoUrl;
+                    this.els.video.play().catch(e => console.log("Auto-play blocked:", e));
+                }
+            });
+
+            this.hls.loadSource(hlsUrl);
+            this.hls.attachMedia(this.els.video);
+            this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                console.log("HLS manifest 載入成功");
+                this.els.video.play().catch(e => console.log("Auto-play blocked:", e));
+            });
+            console.log("使用 HLS 串流:", segmentName, "URL:", hlsUrl);
+        } else {
+            // Fallback: 直接使用 MP4
+            const videoUrl = `${API_BASE}/recordings/${this.currentCameraId}/${dateStr}/${rec.filename}?token=${encodeURIComponent(token)}`;
+            this.els.video.src = videoUrl;
+            this.els.video.play().catch(e => console.log("Auto-play blocked:", e));
+            console.log("使用 MP4:", rec.filename);
+        }
 
         this.currentIndex = index;
         this.updateActiveStates();
@@ -610,7 +658,8 @@ const recording = {
         // 更新播放資訊
         const startTime = new Date(rec.start_time);
         const timeStr = startTime.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" });
-        this.els.clipInfo.textContent = `${timeStr} (${index + 1}/${this.recordings.length})`;
+        const hlsTag = rec.hls_available ? " [HLS]" : "";
+        this.els.clipInfo.textContent = `${timeStr} (${index + 1}/${this.recordings.length})${hlsTag}`;
     },
 
     updateActiveStates() {
