@@ -1,5 +1,5 @@
 // web/watch.js
-console.log("✅ watch.js VERSION = 2026-01-29 12:00");
+console.log("✅ watch.js VERSION = 2026-01-30 1:43");
 console.log("Watch loaded");
 
 // === 主題切換 ===
@@ -243,39 +243,6 @@ let currentCameraId = params.get("camera") || "cam1";
 // 攝影機選擇器
 const cameraSelect = document.getElementById("cameraSelect");
 
-// WebRTC STUN server
-// const RTC_CONFIG = {
-//   iceServers: [
-//     {urls: 'stun:stun.l.google.com:19302'},
-//     {urls: 'stun:stun1.l.google.com:19302'},
-//     // {
-// 		// 	urls: 'stun:stun.nextcloud.com:443'
-// 		// },
-// 		// {
-// 		// 	urls: 'stun:openrelay.metered.ca:80'
-// 		// },
-//     {
-// 			urls: 'turn:turn.yuanshoushen.com:3478',
-// 			username: 'tcm-webrtc-cctv',
-// 			credential: 'uArp-J3V7-XLWw4-i9Zi',
-//     },
-// 		// {
-// 		// 	urls: 'turn:openrelay.metered.ca:80',
-// 		// 	username: 'openrelayproject',
-// 		// 	credential: 'openrelayproject',
-// 		// },
-// 		// {
-// 		// 	urls: 'turn:openrelay.metered.ca:443',
-// 		// 	username: 'openrelayproject',
-// 		// 	credential: 'openrelayproject',
-// 		// },
-// 		// {
-// 		// 	urls: 'turn:openrelay.metered.ca:443?transport=tcp',
-// 		// 	username: 'openrelayproject',
-// 		// 	credential: 'openrelayproject',
-// 		// },
-// 	],
-// };
 let RTC_CONFIG_CACHE = null;
 
 async function getRtcConfigOrThrow() {
@@ -310,6 +277,13 @@ console.log("loadingOverlay:", loadingOverlay);
 console.log("loadingOverlay exists?", !!loadingOverlay);
 
 window.__dbg = { loadingOverlay };
+
+// 點擊影片區域觸發播放（處理自動播放被阻擋的情況）
+videoEl.addEventListener("click", () => {
+  if (videoEl.paused && videoEl.srcObject) {
+    videoEl.play().catch(e => console.warn("播放失敗:", e));
+  }
+});
 
 // === 3. 全域變數 ===
 
@@ -374,11 +348,38 @@ function createPeerConnection(rtcConfig) {
     // 只要拿到有效 stream 就掛上去並關掉 loading
     if (videoEl.srcObject !== stream) {
       videoEl.srcObject = stream;
-      // 某些瀏覽器需要呼叫 play
-      videoEl.play?.().catch(() => {});
       hasVideo = true;       // ✅ 代表已經拿到畫面
       hideLoading();
       logStatus("已接收到影像流");
+
+      // 嘗試自動播放的函數（只成功一次）
+      let playStarted = false;
+      const tryPlay = () => {
+        if (playStarted || !videoEl.paused) return;
+
+        // 確保 muted（某些瀏覽器需要）
+        videoEl.muted = true;
+        videoEl.play()
+          .then(() => {
+            playStarted = true;
+            console.log("影片自動播放成功");
+            logStatus("WebRTC 已連線");
+          })
+          .catch((err) => {
+            console.warn("自動播放被阻擋:", err.message);
+            logStatus("點擊畫面開始播放");
+          });
+      };
+
+      // 多重嘗試策略
+      // 1. 立即嘗試
+      tryPlay();
+
+      // 2. 等待 canplay 事件再試一次
+      videoEl.addEventListener("canplay", tryPlay, { once: true });
+
+      // 3. 延遲 100ms 再試（某些瀏覽器時機問題）
+      setTimeout(tryPlay, 100);
 
       // 啟動品質監控
       qualityStats.start();

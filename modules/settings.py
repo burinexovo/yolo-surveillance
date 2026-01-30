@@ -122,6 +122,11 @@ class Settings(BaseSettings):
     dashboard_pin: Optional[str] = None
 
     # ======================
+    # Debug Mode
+    # ======================
+    debug: bool = False  # 預設關閉，正式環境不啟用 debug
+
+    # ======================
     # WebRTC STUN/TURN
     # ======================
     STUN_URL1: Optional[str] = None

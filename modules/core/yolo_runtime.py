@@ -102,7 +102,7 @@ class YoloRuntime:
 
         # debug 輸出
         logger.debug("Track history self.track_history: %s", self.track_history)
-        logger.debug("Disappear counte self.disappear_counter: %s",
+        logger.debug("Disappear counter self.disappear_counter: %s",
                      self.disappear_counter)
         logger.debug("Target last zone self.last_zone: %s", self.last_zone)
 
@@ -191,7 +191,7 @@ class YoloRuntime:
             if frame is None:
                 cv2.waitKey(1)
                 continue
-            
+
             height, width = frame.shape[:2]
             # 鏡像翻轉
             # frame = cv2.flip(frame, 1)
@@ -220,6 +220,9 @@ class YoloRuntime:
             )
             r = results[0]
             annotated_frame = r.plot()
+            
+            # !!~ 繪製 ROI用
+            # cv2.imwrite("draw_roi.jpg", annotated_frame)
 
             # 錄影
             if self.recording_worker:

@@ -1,10 +1,11 @@
 # routers/alert_routes.py
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, Depends
 
 from modules.notifications.alert_manager import alert_manager
+from pydantic import BaseModel
+from routers.dashboard_routes import verify_token
 
 router = APIRouter(
     prefix="/alerts",
@@ -17,8 +18,8 @@ class AlertUpdate(BaseModel):
 
 
 @router.get("/all-users")
-async def get_all_alerts():
-    """列出所有 user 的通知狀態"""
+async def get_all_alerts(token: str = Depends(verify_token)):
+    """列出所有 user 的通知狀態（需要 token 驗證）"""
     return alert_manager.get_all()
 
 

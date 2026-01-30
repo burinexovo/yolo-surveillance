@@ -4,6 +4,7 @@ from __future__ import annotations
 import time
 import secrets
 import logging
+import threading
 from datetime import date, timedelta
 from typing import Optional, Literal
 
@@ -19,13 +20,20 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 
-# === Token 快取 ===
+# === Token 快取（執行緒安全）===
+_token_lock = threading.Lock()
 _token_cache: dict[str, float] = {}  # token → expiry_timestamp
 CACHE_TTL = 300  # 5 分鐘
 
 # === PIN 登入產生的 Token 快取 ===
 _pin_token_cache: dict[str, float] = {}  # token → expiry_timestamp
 PIN_TOKEN_TTL = 86400  # 24 小時
+
+# === PIN 登入速率限制 ===
+_rate_limit_lock = threading.Lock()
+_login_attempts: dict[str, list[float]] = {}  # IP → [attempt_timestamps]
+RATE_LIMIT_WINDOW = 60  # 60 秒視窗
+RATE_LIMIT_MAX_ATTEMPTS = 5  # 視窗內最多 5 次嘗試
 
 
 def _get_settings(request: Request):
@@ -37,20 +45,21 @@ def _get_settings(request: Request):
 
 async def verify_token(request: Request, token: str = Query(..., min_length=10)):
     """
-    驗證 dashboard token，帶本地快取。
+    驗證 dashboard token，帶本地快取（執行緒安全）。
     - PIN Token 快取命中且未過期 → 直接放行
     - Workers Token 快取命中且未過期 → 直接放行
     - 否則呼叫 Workers 驗證，成功後存入快取
     """
     now = time.time()
 
-    # 優先檢查 PIN Token 快取
-    if token in _pin_token_cache and _pin_token_cache[token] > now:
-        return token
+    with _token_lock:
+        # 優先檢查 PIN Token 快取
+        if token in _pin_token_cache and _pin_token_cache[token] > now:
+            return token
 
-    # 檢查 Workers Token 快取
-    if token in _token_cache and _token_cache[token] > now:
-        return token
+        # 檢查 Workers Token 快取
+        if token in _token_cache and _token_cache[token] > now:
+            return token
 
     # 快取未命中或過期，呼叫 Workers 驗證
     settings = _get_settings(request)
@@ -68,15 +77,72 @@ async def verify_token(request: Request, token: str = Query(..., min_length=10))
 
     if r.status_code == 200:
         # 驗證成功，存入快取
-        _token_cache[token] = now + CACHE_TTL
+        with _token_lock:
+            _token_cache[token] = now + CACHE_TTL
         return token
 
     if r.status_code in (400, 401, 403, 404):
         # 驗證失敗，從快取移除（如果存在）
-        _token_cache.pop(token, None)
+        with _token_lock:
+            _token_cache.pop(token, None)
         raise HTTPException(status_code=403, detail="token invalid")
 
     raise HTTPException(status_code=502, detail="Workers dashboard auth failed")
+
+
+# === Token Cache 清理 ===
+
+def _cleanup_expired_tokens():
+    """清理過期的 token（執行緒安全）"""
+    now = time.time()
+    with _token_lock:
+        expired = [k for k, v in _token_cache.items() if v < now]
+        for k in expired:
+            del _token_cache[k]
+        expired = [k for k, v in _pin_token_cache.items() if v < now]
+        for k in expired:
+            del _pin_token_cache[k]
+
+
+# === PIN 登入速率限制 ===
+
+def _check_rate_limit(ip: str) -> bool:
+    """
+    檢查 IP 是否超過速率限制。
+    回傳 True 表示允許，False 表示被限制。
+    """
+    now = time.time()
+    with _rate_limit_lock:
+        if ip not in _login_attempts:
+            _login_attempts[ip] = []
+
+        # 清理過期的嘗試記錄
+        _login_attempts[ip] = [
+            ts for ts in _login_attempts[ip]
+            if now - ts < RATE_LIMIT_WINDOW
+        ]
+
+        # 檢查是否超過限制
+        if len(_login_attempts[ip]) >= RATE_LIMIT_MAX_ATTEMPTS:
+            return False
+
+        # 記錄這次嘗試
+        _login_attempts[ip].append(now)
+        return True
+
+
+def _get_client_ip(request: Request) -> str:
+    """取得客戶端 IP，支援反向代理"""
+    # 優先從 X-Forwarded-For 取得（Cloudflare/Nginx 等）
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    # 從 CF-Connecting-IP 取得（Cloudflare 專用）
+    cf_ip = request.headers.get("cf-connecting-ip")
+    if cf_ip:
+        return cf_ip
+    # fallback 到直接連線 IP
+    return request.client.host if request.client else "unknown"
 
 
 # === PIN 登入 ===
@@ -96,28 +162,42 @@ class PinLoginResponse(BaseModel):
 async def pin_login(request: Request, body: PinLoginRequest):
     """
     使用 PIN 碼登入 Dashboard，回傳 Token。
+    包含速率限制：每個 IP 在 60 秒內最多嘗試 5 次。
     """
+    # 速率限制檢查
+    client_ip = _get_client_ip(request)
+    if not _check_rate_limit(client_ip):
+        logger.warning("PIN login rate limited: IP=%s", client_ip)
+        raise HTTPException(
+            status_code=429,
+            detail="嘗試次數過多，請稍後再試"
+        )
+
+    # 順便清理過期 token
+    _cleanup_expired_tokens()
+
     settings = _get_settings(request)
 
     # 檢查是否有設定 PIN
     if not settings.dashboard_pin:
         logger.warning("PIN login attempted but DASHBOARD_PIN not configured")
         raise HTTPException(status_code=503, detail="PIN login not configured")
-    
+
     # 驗證 PIN
     if body.pin != settings.dashboard_pin:
-        logger.info("PIN login failed: incorrect PIN")
+        logger.info("PIN login failed: incorrect PIN from IP=%s", client_ip)
         return PinLoginResponse(
             success=False,
             message="PIN 碼錯誤",
         )
 
-    # 產生 Token
+    # 產生 Token（執行緒安全）
     token = secrets.token_urlsafe(32)
     now = time.time()
-    _pin_token_cache[token] = now + PIN_TOKEN_TTL
+    with _token_lock:
+        _pin_token_cache[token] = now + PIN_TOKEN_TTL
 
-    logger.info("PIN login successful, token issued")
+    logger.info("PIN login successful, token issued to IP=%s", client_ip)
     return PinLoginResponse(
         success=True,
         token=token,

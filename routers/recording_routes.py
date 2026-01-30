@@ -163,10 +163,7 @@ async def list_recordings(
         hls_dir = f.with_suffix("")  # 去掉 .mp4 變成目錄名
         hls_available = (hls_dir / "playlist.m3u8").exists()
 
-        # 只回傳有 HLS 版本的錄影
-        if not hls_available:
-            continue
-
+        # 不論 HLS 是否存在都回傳，讓前端自己處理 fallback
         recordings.append(RecordingItem(
             filename=f.name,
             start_time=start_time.isoformat(),

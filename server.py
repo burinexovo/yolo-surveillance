@@ -3,8 +3,9 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from modules.core.yolo_runtime import YoloRuntime
 from modules.settings import get_settings
@@ -25,6 +26,39 @@ from utils.logging import setup_logging
 
 settings = get_settings()
 
+
+# === 安全 Headers 中間件 ===
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """加入安全相關的 HTTP Headers"""
+
+    async def dispatch(self, request: Request, call_next):
+        response: Response = await call_next(request)
+
+        # 防止 MIME 類型嗅探
+        response.headers["X-Content-Type-Options"] = "nosniff"
+
+        # 防止點擊劫持（頁面不允許被嵌入 iframe）
+        response.headers["X-Frame-Options"] = "DENY"
+
+        # XSS 防護（現代瀏覽器大多內建，但仍建議加上）
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+
+        # 強制 HTTPS（僅在非 debug 模式啟用）
+        if not settings.debug:
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
+
+        # 限制 Referrer 資訊洩漏
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+        # 權限政策：禁用不需要的功能
+        response.headers["Permissions-Policy"] = (
+            "geolocation=(), microphone=(), camera=(self)"
+        )
+
+        return response
+
 # === cam1: YOLO + 錄影（由 YoloRuntime 處理）===
 runtime = YoloRuntime(
     settings=settings,
@@ -44,10 +78,10 @@ for cam in settings.get_cameras():
         ))
         camera_recorders.append(recorder)
 
+# 根據 settings.debug 決定 logging level
 setup_logging(
-    # level=logging.INFO,        # production
-    level=logging.DEBUG,         # debug 用
-    log_file="logs/app.log",     # 可選
+    level=logging.DEBUG if settings.debug else logging.INFO,
+    log_file="logs/app.log",
 )
 
 logger = logging.getLogger(__name__)
@@ -76,7 +110,13 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="TCM Shop CCTV System",
     lifespan=lifespan,
+    # 正式環境隱藏 docs
+    docs_url="/docs" if settings.debug else None,
+    redoc_url="/redoc" if settings.debug else None,
 )
+
+# 加入安全 Headers 中間件
+app.add_middleware(SecurityHeadersMiddleware)
 
 # ✅ 全域共享設定
 app.state.settings = settings
@@ -101,13 +141,13 @@ app.include_router(signaling_router)
 
 if __name__ == "__main__":
     import uvicorn
-    # public command: uvicorn server:app --host 0.0.0.0 --port 8000
-    # cloudflared tunnel run tcm-backend
-    # debug command: uvicorn server:app --reload
+    # 正式環境: uvicorn server:app --host 0.0.0.0 --port 8000
+    # 開發環境: DEBUG=true uvicorn server:app --reload
+    # Cloudflare Tunnel: cloudflared tunnel run tcm-backend
 
     uvicorn.run(
         "server:app",
         host="0.0.0.0",
         port=8000,
-        reload=True,
+        reload=settings.debug,  # 僅在 debug 模式啟用熱重載
     )

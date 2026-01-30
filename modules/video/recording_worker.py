@@ -111,7 +111,7 @@ class RecordingWorker:
             try:
                 self.recorder.write(raw_frame=raw, annotated_frame=annot)
             except Exception as e:
-                logger.exception("%s recoder.write failed", self.cfg.name)
+                logger.exception("%s recorder.write failed", self.cfg.name)
 
             next_ts += interval
             if next_ts < time.monotonic() - 0.5:

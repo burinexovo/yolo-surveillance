@@ -51,7 +51,7 @@ class WebRTCGateway:
         if getattr(settings, "STUN_URL2", None):
             ice_servers.append(RTCIceServer(urls=settings.STUN_URL2))
 
-        # TURN（後端也建議要有，因為你 aiortc 在本地 NAT 後面）
+        # TURN
         turn_url = getattr(settings, "TURN_URL1", None)
         # ← 新增：跟 coturn static-auth-secret 一樣
         turn_secret = getattr(settings, "TURN_STATIC_AUTH_SECRET", None)
@@ -158,97 +158,3 @@ class WebRTCGateway:
 
     async def close(self):
         await self.pc.close()
-
-# from aiortc import RTCPeerConnection, RTCSessionDescription, RTCIceCandidate
-# from aiortc.rtcconfiguration import RTCIceServer, RTCConfiguration
-# from aiortc.contrib.media import MediaPlayer
-# from aiortc.sdp import candidate_from_sdp
-# from modules.webrtc.rtsp_video_track import RTSPVideoTrack
-# from modules.video.video_source import get_reader
-# import asyncio
-# import logging
-
-# logger = logging.getLogger(__name__)
-
-
-# class WebRTCGateway:
-#     def __init__(self, url, camera_id: str, signaling, settings):
-#         self.rtsp_url = url
-#         self.camera_id = camera_id
-#         self.signaling = signaling
-#         self.pc = RTCPeerConnection(
-#             RTCConfiguration(
-#                 iceServers=[
-#                     RTCIceServer(urls=settings.STUN_URL1),
-#                     RTCIceServer(urls=settings.STUN_URL2),
-#                     RTCIceServer(
-#                         urls=settings.TURN_URL1,
-#                         username=settings.TURN_USERNAME1,
-#                         credential=settings.TURN_SECRET1,
-#                     ),
-#                 ]
-#             )
-#         )
-
-#     async def start(self):
-#         # # 本機攝像頭
-#         # player = MediaPlayer(
-#         #     "default:none",
-#         #     format="avfoundation",
-#         #     options={
-#         #         "framerate": "30",
-#         #         "video_size": "1280x720"
-#         #     }
-#         # )
-
-#         # # Tapo C210 rtsp (另外一條連線)
-#         # player = MediaPlayer(self.rtsp_url)
-#         # logger.info("WebRTCGateway start:", player.audio, player.video)
-
-#         # 設為 WebRTC Track（取得現有畫面）
-#         self.pc.addTrack(RTSPVideoTrack(get_reader()))
-#         # self.pc.addTrack(player.video)
-
-#         # 先綁事件，再開始 offer / ICE
-#         @self.pc.on("icegatheringstatechange")
-#         async def on_ice_gather():
-#             logger.info("WebRTC ice gathering: %s", self.pc.iceConnectionState)
-
-#         @self.pc.on("iceconnectionstatechange")
-#         async def on_ice_conn():
-#             logger.info("WebRTC ice connection stae changeL %s",
-#                         self.pc.iceConnectionState)
-
-#         # 1. 產生 offer
-#         offer = await self.pc.createOffer()
-
-#         # 2. 設成 localDescription（這一步會啟動 ICE gathering）
-#         await self.pc.setLocalDescription(offer)
-
-#         # 3. 等到 ICE 全部收完
-#         while self.pc.iceGatheringState != "complete":
-#             await asyncio.sleep(0.1)
-
-#         # 4. 用「最新的」 localDescription 送出去
-#         local = self.pc.localDescription
-#         await self.signaling.send(
-#             {"type": "offer", "sdp": local.sdp, "type_sdp": local.type}
-#         )
-
-#     async def receive_answer(self, msg):
-#         logger.info("WebRTC receive answer: %s", msg)
-#         answer = RTCSessionDescription(sdp=msg["sdp"], type=msg["type"])
-#         await self.pc.setRemoteDescription(answer)
-
-#     async def receive_ice(self, candidate):
-#         logger.info("WebRTC receive candidate: %s", candidate)
-#         if candidate is None:
-#             await self.pc.addIceCandidate(None)
-#             return
-#         ice = candidate_from_sdp(candidate["candidate"])
-#         ice.sdpMid = candidate.get("sdpMid")
-#         ice.sdpMLineIndex = candidate.get("sdpMLineIndex")
-#         await self.pc.addIceCandidate(candidate=ice)
-
-#     async def close(self):
-#         await self.pc.close()

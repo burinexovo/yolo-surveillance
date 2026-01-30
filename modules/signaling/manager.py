@@ -52,6 +52,6 @@ class SignalingManager:
     async def send(self, payload: dict):
         await self.ws.send_text(json.dumps(payload))
 
-    def close(self):
+    async def close(self):
         if self.gateway:
-            self.gateway.close()
+            await self.gateway.close()

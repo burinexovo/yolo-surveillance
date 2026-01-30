@@ -147,7 +147,7 @@ async def dashboard(
         )
     if r.status_code == 200:
         data = r.json()
-        return data.get("ok")
+        return {"ok": data.get("ok", False), "source": "workers"}
 
     # 把常見的 auth 失敗統一成 403
     if r.status_code in (400, 401, 403, 404):
