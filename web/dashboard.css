@@ -881,8 +881,20 @@ html[data-theme="dark"] .recording-controls input[type="date"]::-webkit-calendar
     }
 
     .player-info {
-        flex-direction: column;
-        gap: 10px;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        gap: 8px;
+    }
+
+    .player-info button {
+        padding: 6px 10px;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    #clipInfo {
+        font-size: 12px;
+        min-width: 100px;
     }
 
     .timeline-labels {

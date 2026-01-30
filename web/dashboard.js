@@ -1,5 +1,5 @@
 // web/dashboard.js
-console.log("✅ dashboard.js VERSION = 2026-01-30 21:30");
+console.log("✅ dashboard.js VERSION = 2026-01-31 14:00");
 console.log("Dashboard loaded");
 
 // === 設定 ===
@@ -524,9 +524,15 @@ const recording = {
             this.renderClipsList();
             this.updateNavButtons();
 
-            // 重設播放器
-            this.els.video.src = "";
-            this.els.clipInfo.textContent = "點擊片段播放";
+            // 預設選擇最新的可播放錄影（不自動播放）
+            if (this.recordings.length > 0) {
+                const latestIndex = this.recordings.length - 1;
+                this.playClip(latestIndex, false);
+            } else {
+                // 無錄影時重設播放器
+                this.els.video.src = "";
+                this.els.clipInfo.textContent = "該日期無錄影";
+            }
 
         } catch (e) {
             console.error("loadDate error:", e);
@@ -602,7 +608,7 @@ const recording = {
         });
     },
 
-    playClip(index) {
+    playClip(index, autoPlay = true) {
         if (index < 0 || index >= this.recordings.length) return;
 
         const rec = this.recordings[index];
@@ -646,7 +652,9 @@ const recording = {
                     // 回退到 MP4
                     const videoUrl = `${API_BASE}/recordings/${this.currentCameraId}/${dateStr}/${rec.filename}?token=${encodeURIComponent(token)}`;
                     this.els.video.src = videoUrl;
-                    this.els.video.play().catch(e => console.log("Auto-play blocked:", e));
+                    if (autoPlay) {
+                        this.els.video.play().catch(e => console.log("Auto-play blocked:", e));
+                    }
                 }
             });
 
@@ -654,14 +662,18 @@ const recording = {
             this.hls.attachMedia(this.els.video);
             this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
                 console.log("HLS manifest 載入成功");
-                this.els.video.play().catch(e => console.log("Auto-play blocked:", e));
+                if (autoPlay) {
+                    this.els.video.play().catch(e => console.log("Auto-play blocked:", e));
+                }
             });
             console.log("使用 HLS 串流:", segmentName, "URL:", hlsUrl);
         } else {
             // Fallback: 直接使用 MP4
             const videoUrl = `${API_BASE}/recordings/${this.currentCameraId}/${dateStr}/${rec.filename}?token=${encodeURIComponent(token)}`;
             this.els.video.src = videoUrl;
-            this.els.video.play().catch(e => console.log("Auto-play blocked:", e));
+            if (autoPlay) {
+                this.els.video.play().catch(e => console.log("Auto-play blocked:", e));
+            }
             console.log("使用 MP4:", rec.filename);
         }
 
