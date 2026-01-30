@@ -29,28 +29,47 @@ def cleanup(cfg: CleanupConfig) -> int:
     cutoff = datetime.now() - timedelta(days=cfg.keep_days)
     deleted = 0
 
+    # 支援兩種結構：
+    # 舊結構: recordings/YYYYMMDD/
+    # 新結構: recordings/{camera_id}/YYYYMMDD/
+
     for p in sorted(cfg.root.iterdir()):
         if not p.is_dir():
             continue
 
+        # 檢查是否為日期資料夾（舊結構）
         d = parse_yyyymmdd(p.name)
-        if d is None:
-            # 非日期資料夾就跳過（避免誤刪）
+        if d is not None:
+            if d < cutoff:
+                deleted += _delete_folder(p, cfg.dry_run)
             continue
 
-        if d < cutoff:
-            if cfg.dry_run:
-                print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
-                      f"[DRY] would delete: {p}")
-            else:
-                print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
-                      f"🗑️ delete: {p}")
-                shutil.rmtree(p, ignore_errors=False)
-            deleted += 1
+        # 否則視為 camera_id 資料夾（新結構），遍歷其子目錄
+        for date_dir in sorted(p.iterdir()):
+            if not date_dir.is_dir():
+                continue
+
+            d = parse_yyyymmdd(date_dir.name)
+            if d is None:
+                continue
+
+            if d < cutoff:
+                deleted += _delete_folder(date_dir, cfg.dry_run)
 
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] "
           f"Done. deleted_folders={deleted} (keep_days={cfg.keep_days})")
     return deleted
+
+
+def _delete_folder(path: Path, dry_run: bool) -> int:
+    """刪除資料夾，返回 1 表示成功"""
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    if dry_run:
+        print(f"[{timestamp}] [DRY] would delete: {path}")
+    else:
+        print(f"[{timestamp}] 🗑️ delete: {path}")
+        shutil.rmtree(path, ignore_errors=False)
+    return 1
 
 
 def main():
