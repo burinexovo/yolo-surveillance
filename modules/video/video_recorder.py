@@ -85,16 +85,17 @@ def _convert_to_hls(mp4_path: Path):
 
     try:
         # 重新編碼為 H.264（瀏覽器 HLS 相容）
+        # CPU 優化：使用 ultrafast preset 和較低品質設定
         result = subprocess.run(
             [
                 "ffmpeg", "-y", "-i", str(mp4_path),
                 "-c:v", "libx264",       # 轉換為 H.264
-                "-preset", "fast",       # 編碼速度
-                "-crf", "28",            # 品質（28 較小檔案，可接受畫質）
-                "-maxrate", "1M",        # 最大位元率 1Mbps
-                "-bufsize", "2M",        # 緩衝區大小
+                "-preset", "ultrafast",  # 編碼速度（CPU 優化）
+                "-crf", "32",            # 品質（32 較小檔案，回放可接受）
+                "-maxrate", "800k",      # 最大位元率 800kbps（CPU 優化）
+                "-bufsize", "1M",        # 緩衝區大小（CPU 優化）
                 "-c:a", "aac",           # 音訊轉 AAC
-                "-b:a", "64k",           # 音訊位元率 64kbps
+                "-b:a", "48k",           # 音訊位元率 48kbps（CPU 優化）
                 "-hls_time", "2",        # 每段 2 秒
                 "-hls_list_size", "0",   # 保留所有段落
                 "-hls_segment_filename", str(hls_dir / "seg_%03d.ts"),
@@ -124,7 +125,7 @@ class RecorderConfig:
     save_annot: bool = False
     fps: int = 30
     fourcc: str = "mp4v"
-    segment_minutes: int = 3
+    segment_minutes: int = 5  # CPU 優化：增加分段時間減少轉檔頻率
     target_size: Optional[Tuple[int, int]] = (960, 540)  # (width, height)
     enable_faststart: bool = True  # 啟用 ffmpeg faststart 後處理
     enable_hls: bool = True  # 啟用 HLS 轉換（需要 enable_faststart）
