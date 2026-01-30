@@ -1,5 +1,5 @@
 // web/watch.js
-console.log("✅ watch.js VERSION = 2026-01-30 1:43");
+console.log("✅ watch.js VERSION = 2026-01-30 11:55");
 console.log("Watch loaded");
 
 // === 主題切換 ===

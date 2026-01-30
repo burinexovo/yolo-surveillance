@@ -2,6 +2,7 @@ __pycache__/
 datasets/
 recordings/
 playgrounds/
+workers/
 logs/
 data/
 .env
