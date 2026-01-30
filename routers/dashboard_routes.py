@@ -90,6 +90,48 @@ async def verify_token(request: Request, token: str = Query(..., min_length=10))
     raise HTTPException(status_code=502, detail="Workers dashboard auth failed")
 
 
+async def verify_watch_token(request: Request, token: str = Query(..., min_length=10)):
+    """
+    驗證 watch token（用於即時畫面相關 API）。
+    使用 /internal/rtc-config 端點，scope 為 watch。
+    """
+    now = time.time()
+
+    with _token_lock:
+        # 檢查 PIN Token 快取
+        if token in _pin_token_cache and _pin_token_cache[token] > now:
+            return token
+        # 檢查 Workers Token 快取
+        if token in _token_cache and _token_cache[token] > now:
+            return token
+
+    # 快取未命中，呼叫 Workers 驗證
+    settings = _get_settings(request)
+
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            r = await client.post(
+                f"{settings.workers_base_url}/internal/rtc-config",
+                headers={"x-internal-token": settings.internal_token},
+                json={"token": token, "scope": "watch"},
+            )
+    except httpx.RequestError as e:
+        logger.error(f"Workers request failed: {e}")
+        raise HTTPException(status_code=502, detail="Workers unreachable")
+
+    if r.status_code == 200:
+        with _token_lock:
+            _token_cache[token] = now + CACHE_TTL
+        return token
+
+    if r.status_code in (400, 401, 403, 404):
+        with _token_lock:
+            _token_cache.pop(token, None)
+        raise HTTPException(status_code=403, detail="token invalid")
+
+    raise HTTPException(status_code=502, detail="Workers watch auth failed")
+
+
 # === Token Cache 清理 ===
 
 def _cleanup_expired_tokens():

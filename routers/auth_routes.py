@@ -9,8 +9,10 @@ from typing import Any
 
 import httpx
 
-# 引入 PIN Token 快取（與 dashboard_routes 共用）
-from routers.dashboard_routes import _pin_token_cache
+# 引入 Token 快取（與 dashboard_routes 共用）
+from routers.dashboard_routes import (
+    _pin_token_cache, _token_cache, _token_lock, CACHE_TTL
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -96,15 +98,20 @@ async def rtc_config(
     scope: str = Query("watch"),
 ):
     settings = _get_settings(request)
-
-    # 優先檢查 PIN Token
     now = time.time()
-    if token in _pin_token_cache and _pin_token_cache[token] > now:
-        # PIN Token 有效，從 settings 組裝 RTC config
-        ice_servers = _build_ice_servers_from_settings(settings)
-        return {"iceServers": ice_servers}
 
-    # PIN Token 不存在或過期，呼叫 Workers 驗證
+    # 優先檢查本地快取（執行緒安全）
+    with _token_lock:
+        # 檢查 PIN Token
+        if token in _pin_token_cache and _pin_token_cache[token] > now:
+            ice_servers = _build_ice_servers_from_settings(settings)
+            return {"iceServers": ice_servers}
+        # 檢查已驗證的 Workers Token
+        if token in _token_cache and _token_cache[token] > now:
+            ice_servers = _build_ice_servers_from_settings(settings)
+            return {"iceServers": ice_servers}
+
+    # 快取未命中，呼叫 Workers 驗證
     async with httpx.AsyncClient(timeout=8.0) as client:
         r = await client.post(
             f"{settings.workers_base_url}/internal/rtc-config",
@@ -113,6 +120,10 @@ async def rtc_config(
         )
 
     if r.status_code == 200:
+        # 驗證成功，加入快取供 WebSocket 使用
+        with _token_lock:
+            _token_cache[token] = now + CACHE_TTL
+
         data = r.json()
         if not isinstance(data, dict) or "iceServers" not in data or not isinstance(data["iceServers"], list):
             raise HTTPException(status_code=502, detail="bad rtc-config from workers")
@@ -131,12 +142,16 @@ async def dashboard(
     token: str = Query(..., min_length=10),
     scope: str = Query("dashboard:read"),
 ):
-    # 優先檢查 PIN Token
     now = time.time()
-    if token in _pin_token_cache and _pin_token_cache[token] > now:
-        return {"ok": True, "source": "pin"}
 
-    # PIN Token 不存在或過期，呼叫 Workers 驗證
+    # 優先檢查本地快取（執行緒安全）
+    with _token_lock:
+        if token in _pin_token_cache and _pin_token_cache[token] > now:
+            return {"ok": True, "source": "pin"}
+        if token in _token_cache and _token_cache[token] > now:
+            return {"ok": True, "source": "cache"}
+
+    # 快取未命中，呼叫 Workers 驗證
     settings = _get_settings(request)
 
     async with httpx.AsyncClient(timeout=8.0) as client:
@@ -146,6 +161,9 @@ async def dashboard(
             json={"token": token, "scope": scope},
         )
     if r.status_code == 200:
+        # 驗證成功，加入快取
+        with _token_lock:
+            _token_cache[token] = now + CACHE_TTL
         data = r.json()
         return {"ok": data.get("ok", False), "source": "workers"}
 

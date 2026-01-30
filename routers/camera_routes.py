@@ -6,7 +6,7 @@ from fastapi import APIRouter, Request, Depends
 from pydantic import BaseModel
 
 from modules.settings import get_settings
-from routers.dashboard_routes import verify_token
+from routers.dashboard_routes import verify_watch_token
 
 router = APIRouter(prefix="/api", tags=["cameras"])
 
@@ -27,7 +27,7 @@ class CamerasResponse(BaseModel):
 @router.get("/cameras", response_model=CamerasResponse)
 async def list_cameras(
     request: Request,
-    token: str = Depends(verify_token),
+    token: str = Depends(verify_watch_token),
 ):
     """列出所有可用的攝影機"""
     cameras = settings.get_cameras()
