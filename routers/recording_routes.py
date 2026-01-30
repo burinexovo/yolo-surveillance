@@ -152,6 +152,14 @@ async def list_recordings(
         if not start_time:
             continue
 
+        # 檢查 HLS 版本是否存在（轉檔完成）
+        hls_dir = f.with_suffix("")  # 去掉 .mp4 變成目錄名
+        hls_available = (hls_dir / "playlist.m3u8").exists()
+
+        # 只返回 HLS 轉檔完成的錄影，避免播放正在處理中的檔案
+        if not hls_available:
+            continue
+
         stat = f.stat()
         size = stat.st_size
         total_size += size
@@ -159,17 +167,12 @@ async def list_recordings(
         # 預設每段 60 秒（實際可從影片 metadata 取得，但這裡簡化處理）
         duration = 60
 
-        # 檢查 HLS 版本是否存在
-        hls_dir = f.with_suffix("")  # 去掉 .mp4 變成目錄名
-        hls_available = (hls_dir / "playlist.m3u8").exists()
-
-        # 不論 HLS 是否存在都回傳，讓前端自己處理 fallback
         recordings.append(RecordingItem(
             filename=f.name,
             start_time=start_time.isoformat(),
             duration_seconds=duration,
             size_bytes=size,
-            hls_available=hls_available,
+            hls_available=True,
         ))
 
     return RecordingsResponse(

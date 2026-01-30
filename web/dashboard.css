@@ -868,7 +868,12 @@ html[data-theme="dark"] .recording-controls input[type="date"]::-webkit-calendar
     .recording-controls input[type="date"] {
         width: 100%;
         max-width: 100%;
+        min-width: 0;  /* 修復 flexbox 溢出 */
         box-sizing: border-box;
+    }
+
+    .recording-section {
+        overflow: hidden;  /* 防止子元素溢出 */
     }
 
     .recording-summary {

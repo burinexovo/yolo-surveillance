@@ -1,5 +1,5 @@
 // web/dashboard.js
-console.log("✅ dashboard.js VERSION = 2026-01-29 12:00");
+console.log("✅ dashboard.js VERSION = 2026-01-30 21:30");
 console.log("Dashboard loaded");
 
 // === 設定 ===
@@ -382,6 +382,7 @@ async function refreshAll() {
         updateHourlyChart(),
         updateDailyChart(),
         updateSummary(),
+        recording.loadDate(),  // 也更新錄影列表
     ]);
 }
 
@@ -408,6 +409,7 @@ const recording = {
     currentIndex: -1,
     currentCameraId: "cam1",
     hls: null,  // HLS.js 實例
+    initialized: false,  // 是否已初始化
 
     // DOM 元素
     els: {
@@ -452,6 +454,9 @@ const recording = {
         // 載入攝影機列表
         await this.loadCameras();
 
+        // 標記為已初始化
+        this.initialized = true;
+
         // 載入今天的錄影
         this.loadDate();
     },
@@ -487,6 +492,9 @@ const recording = {
     },
 
     async loadDate() {
+        // 防止在初始化前被調用
+        if (!this.initialized || !this.els.dateInput) return;
+
         const dateValue = this.els.dateInput.value;
         if (!dateValue) return;
 
@@ -704,6 +712,46 @@ const recording = {
         }
     },
 
+    // 輪詢檢查新轉檔完成的錄影
+    async pollForNewRecordings() {
+        // 防止在初始化前被調用
+        if (!this.initialized || !this.els.dateInput) return;
+
+        const dateValue = this.els.dateInput.value;
+        if (!dateValue) return;
+
+        // 只在查看「今天」時才輪詢
+        const today = new Date().toISOString().split("T")[0];
+        if (dateValue !== today) return;
+
+        const dateStr = dateValue.replace(/-/g, "");
+
+        try {
+            const recRes = await fetchAPI("/recordings", { date: dateStr, camera_id: this.currentCameraId });
+            const newRecordings = recRes.recordings || [];
+
+            // 比對是否有新增的錄影
+            if (newRecordings.length > this.recordings.length) {
+                const addedCount = newRecordings.length - this.recordings.length;
+                console.log(`發現 ${addedCount} 個新轉檔完成的錄影`);
+
+                this.recordings = newRecordings;
+
+                // 更新摘要
+                this.els.summary.textContent =
+                    `${this.recordings.length} 段錄影，共 ${recRes.total_size_mb} MB`;
+
+                // 重新渲染（保持當前播放狀態）
+                this.renderTimeline();
+                this.renderClipsList();
+                this.updateActiveStates();
+            }
+        } catch (e) {
+            // 靜默失敗，不影響使用者體驗
+            console.debug("pollForNewRecordings error:", e);
+        }
+    },
+
     jumpToEvent(evt) {
         const evtTime = new Date(evt.entry_time);
 
@@ -762,8 +810,11 @@ async function initDashboard() {
         // 初始化錄影回放模組
         await recording.init();
 
-        // 每 30 秒自動更新即時狀態
-        setInterval(updateRealtime, 30000);
+        // 每 30 秒自動更新即時狀態 + 錄影列表（輪詢新轉檔完成的影片）
+        setInterval(() => {
+            updateRealtime();
+            recording.pollForNewRecordings();
+        }, 30000);
 
         // 每 5 分鐘更新圖表
         setInterval(() => {
