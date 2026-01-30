@@ -78,6 +78,10 @@
 				background-clip: text;
 			}
 
+			.header-status {
+				display: none;  /* 桌面版隱藏，手機版顯示 */
+			}
+
 			.header-actions {
 				display: flex;
 				gap: 12px;
@@ -90,6 +94,10 @@
 				padding: 6px 12px;
 				background: var(--bg-primary);
 				border-radius: 20px;
+				white-space: nowrap;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				max-width: 200px;
 			}
 
 			#status.connected {
@@ -393,13 +401,54 @@
 			@media (max-width: 640px) {
 				header {
 					flex-direction: column;
-					gap: 12px;
+					gap: 8px;
 					padding: 12px 16px;
 				}
 
+				h1 {
+					font-size: 18px;
+				}
+
+				/* 手機版：狀態獨立一行置中 */
+				.header-status {
+					display: flex;
+					justify-content: center;
+					width: 100%;
+				}
+
+				#status {
+					max-width: 100%;
+					text-align: center;
+				}
+
+				/* 手機版：控制項在第二行 */
 				.header-actions {
 					width: 100%;
-					justify-content: space-between;
+					justify-content: center;
+					gap: 8px;
+					flex-wrap: wrap;
+				}
+
+				.camera-select {
+					min-width: 120px;
+					font-size: 13px;
+					padding: 6px 10px;
+				}
+
+				button {
+					padding: 8px 14px;
+					font-size: 13px;
+				}
+
+				#themeToggle {
+					width: 36px;
+					height: 36px;
+					padding: 6px;
+				}
+
+				/* FPS 按鈕位置調整 */
+				.stats-container {
+					top: 140px;  /* 避開多行 header */
 				}
 
 				main {
@@ -440,8 +489,10 @@
 
 		<header>
 			<h1>元壽蔘藥行即時畫面</h1>
-			<div class="header-actions">
+			<div class="header-status">
 				<span id="status">初始化中...</span>
+			</div>
+			<div class="header-actions">
 				<select id="cameraSelect" class="camera-select">
 					<option value="">載入中...</option>
 				</select>
@@ -466,6 +517,6 @@
 		</footer>
 
 		<script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
-		<script src="/web/watch.js?v=20260129_2131"></script>
+		<script src="/web/watch.js?v=20260130_0200"></script>
 	</body>
 </html>

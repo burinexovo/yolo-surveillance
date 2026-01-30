@@ -442,6 +442,34 @@ footer p {
     .header-actions {
         flex-wrap: wrap;
         justify-content: center;
+        gap: 8px;
+        width: 100%;
+    }
+
+    /* 控制順序：第一行 即時畫面 + 主題切換，第二行 日期選擇 + 重新整理 */
+    .header-actions #watchBtn { order: 1; }
+    .header-actions #themeToggle { order: 2; }
+    .header-actions #rangeSelect { order: 4; }
+    .header-actions #refreshBtn { order: 5; }
+
+    /* 用 pseudo-element 強制換行 */
+    .header-actions::before {
+        content: '';
+        flex: 0 0 100%;
+        height: 0;
+        order: 3;
+    }
+
+    .header-actions select,
+    .header-actions button {
+        padding: 8px 14px;
+        font-size: 13px;
+    }
+
+    .header-actions #themeToggle {
+        width: 36px;
+        height: 36px;
+        padding: 6px;
     }
 }
 
@@ -828,11 +856,23 @@ html[data-theme="dark"] .recording-controls input[type="date"]::-webkit-calendar
     .recording-controls {
         width: 100%;
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .recording-controls .camera-select {
+        width: 100%;
+        min-width: unset;
     }
 
     .recording-controls input[type="date"] {
         width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .recording-summary {
+        text-align: center;
     }
 
     .player-info {

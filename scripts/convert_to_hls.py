@@ -35,8 +35,11 @@ def convert_mp4_to_hls(mp4_path: Path, dry_run: bool = False) -> bool:
                 "ffmpeg", "-y", "-i", str(mp4_path),
                 "-c:v", "libx264",       # 轉換為 H.264
                 "-preset", "fast",       # 編碼速度
-                "-crf", "23",            # 品質
+                "-crf", "28",            # 品質（28 較小檔案）
+                "-maxrate", "1M",        # 最大位元率 1Mbps
+                "-bufsize", "2M",        # 緩衝區大小
                 "-c:a", "aac",           # 音訊轉 AAC
+                "-b:a", "64k",           # 音訊位元率
                 "-hls_time", "2",
                 "-hls_list_size", "0",
                 "-hls_segment_filename", str(hls_dir / "seg_%03d.ts"),

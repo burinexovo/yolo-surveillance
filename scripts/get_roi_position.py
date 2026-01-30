@@ -28,9 +28,9 @@ def on_click(event, x, y, flags, param):
 def main():
     global points, img, temp_img, polygon_closed
 
-    img = cv2.imread("images/black_cat.jpg")
+    img = cv2.imread("assets/photos/draw_roi.jpg")
     if img is None:
-        print("❌ 找不到圖片 images/black_cat.jpg")
+        print("❌ 找不到圖片 draw_roi.jpg")
         return
 
     # 用一張 temp_img 來畫，不改到原圖

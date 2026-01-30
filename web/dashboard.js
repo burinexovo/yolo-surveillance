@@ -612,6 +612,12 @@ const recording = {
             const hlsUrl = `${API_BASE}/recordings/${this.currentCameraId}/${dateStr}/${segmentName}/playlist.m3u8?token=${encodeURIComponent(token)}`;
 
             this.hls = new Hls({
+                // 優化載入速度
+                maxBufferLength: 10,        // 最多緩衝 10 秒
+                maxMaxBufferLength: 30,     // 最大緩衝 30 秒
+                startLevel: 0,              // 立即從第一個品質開始
+                maxLoadingDelay: 4,         // 最大載入延遲 4 秒
+                lowLatencyMode: true,       // 低延遲模式
                 xhrSetup: (xhr, url) => {
                     // 確保所有 HLS 請求都帶有 token
                     if (!url.includes("token=")) {
