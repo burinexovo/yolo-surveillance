@@ -214,8 +214,8 @@ class YoloRuntime:
                 persist=True,
                 conf=0.5,
                 iou=0.6,
-                # classes=[47, 49],  # TODO: 之後改回 person
-                classes=[19],  # 暫時用牛防止誤報
+                classes=[47, 49],  # !!~ 橘子、蘋果
+                # classes=[19],  # 暫時用牛防止誤報
                 verbose=False
             )
             r = results[0]
@@ -246,11 +246,13 @@ class YoloRuntime:
 
                 # 處理每個物件
                 for obj_id, (cx, cy, w, h) in zip(ids, boxes):
-                    cx, cy = int(cx), int(cy)
+                    cx = int(cx)
+                    # 使用底部中心點（腳的位置）作為定位點，不受身高影響
+                    foot_y = int(cy + h / 2)
 
-                    in_door = cv2.pointPolygonTest(ENTRY_ROI_PTS, (cx, cy), False) >= 0
+                    in_door = cv2.pointPolygonTest(ENTRY_ROI_PTS, (cx, foot_y), False) >= 0
                     in_inside = cv2.pointPolygonTest(
-                        INSIDE_ROI_PTS, (cx, cy), False) >= 0
+                        INSIDE_ROI_PTS, (cx, foot_y), False) >= 0
 
                     if in_inside:
                         zone_now = "inside"
@@ -285,10 +287,10 @@ class YoloRuntime:
 
                     last_zone[obj_id] = zone_now
 
-                    # 軌跡
+                    # 軌跡（使用底部中心點）
                     if obj_id not in track_history:
                         track_history[obj_id] = []
-                    track_history[obj_id].append((cx, cy))
+                    track_history[obj_id].append((cx, foot_y))
                     if len(track_history[obj_id]) > 20:
                         track_history[obj_id] = track_history[obj_id][-20:]
 
@@ -302,9 +304,10 @@ class YoloRuntime:
                                 thickness=2,
                             )
 
+                    # 繪製定位點（底部中心）
                     cv2.circle(
                         img=annotated_frame,
-                        center=(cx, cy),
+                        center=(cx, foot_y),
                         radius=5,
                         color=(252, 0, 168),
                         thickness=2,
