@@ -11,3 +11,7 @@ data/
 *.json
 *.sh
 draw_roi.jpg
+# Model weights (too large for git)
+*.pt
+*.onnx
+*.engine
