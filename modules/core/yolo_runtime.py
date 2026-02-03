@@ -212,14 +212,11 @@ class YoloRuntime:
                 frame,
                 tracker=tracker_cfg,
                 persist=True,
-                conf=0.15,
-                iou=0.30,
-                max_det=40,
-                # classes=[47, 49],  # !!~ 橘子、蘋果
-                classes=[0],
+                conf=0.40,      # 提高信心閾值：減少低品質偵測
+                iou=0.50,       # 提高 IOU：更嚴格的 NMS，避免一人多框
+                max_det=10,     # 降低最大偵測數：店內不會有太多人
+                classes=[0],    # 只偵測人
                 verbose=False
-                # imgsz=1280,
-                # augment=True, # 會變很慢
             )
             r = results[0]
             annotated_frame = r.plot()

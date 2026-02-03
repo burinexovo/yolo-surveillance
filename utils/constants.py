@@ -26,5 +26,5 @@ INSIDE_ROI = np.array([
 
 INSIDE_ROI_PTS = INSIDE_ROI.reshape((-1, 1, 2))
 
-# 連續幾幀沒看到才算離店
-MAX_DISAPPEAR = 5
+# 連續幾幀沒看到才算離店（30fps 下約 1 秒）
+MAX_DISAPPEAR = 30
