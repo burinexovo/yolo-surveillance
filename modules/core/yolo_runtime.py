@@ -23,11 +23,44 @@ from utils.r2_keys import make_datetime_key
 from utils import (
     ENTRY_ROI_PTS,
     INSIDE_ROI_PTS,
-    MAX_DISAPPEAR
 )
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+class SpatialEntryCounter:
+    """
+    位置去重計數器：同一位置在冷卻時間內只計算一次進店。
+    用於解決 Track ID 不穩定導致的重複計數問題。
+    """
+
+    def __init__(self, cooldown_seconds: float = 5.0, radius: float = 100.0):
+        self.cooldown = cooldown_seconds
+        self.radius = radius
+        self.recent_entries: list[tuple[float, float, float]] = []  # [(x, y, timestamp), ...]
+
+    def try_count(self, x: float, y: float) -> bool:
+        """
+        嘗試計數：如果該位置附近最近沒計過，回傳 True 並記錄。
+        """
+        now = time.time()
+
+        # 清理過期記錄
+        self.recent_entries = [
+            (ex, ey, et) for ex, ey, et in self.recent_entries
+            if now - et < self.cooldown
+        ]
+
+        # 檢查附近是否有最近的計數
+        for ex, ey, et in self.recent_entries:
+            distance = ((x - ex) ** 2 + (y - ey) ** 2) ** 0.5
+            if distance < self.radius:
+                return False  # 太近，不計
+
+        # 記錄並計數
+        self.recent_entries.append((x, y, now))
+        return True
 
 
 @dataclass
@@ -59,8 +92,12 @@ class YoloRuntime:
 
     # 這些是 tracking 用的狀態（之後你也可以拿來做狀態查詢 API）
     track_history: Dict[int, List[Tuple[int, int]]] = field(default_factory=dict)
-    disappear_counter: Dict[int, int] = field(default_factory=dict)
     last_zone: Dict[int, str] = field(default_factory=dict)
+
+    # 位置去重計數器（解決 ID 不穩定問題）
+    entry_counter: SpatialEntryCounter = field(
+        default_factory=lambda: SpatialEntryCounter(cooldown_seconds=5.0, radius=100.0)
+    )
 
     notify_cooldown: float = 10.0
 
@@ -101,10 +138,8 @@ class YoloRuntime:
                     logger.exception("Cleanup error")
 
         # debug 輸出
-        logger.debug("Track history self.track_history: %s", self.track_history)
-        logger.debug("Disappear counter self.disappear_counter: %s",
-                     self.disappear_counter)
-        logger.debug("Target last zone self.last_zone: %s", self.last_zone)
+        logger.debug("Track history: %s", self.track_history)
+        logger.debug("Last zone: %s", self.last_zone)
 
     # === 初始化部分 ===
 
@@ -179,8 +214,8 @@ class YoloRuntime:
         prev_time = 0.0
         last_notify_ts = 0.0
         track_history = self.track_history
-        disappear_counter = self.disappear_counter
         last_zone = self.last_zone
+        prev_inside_count = 0  # 上一幀店內人數（用於通知判斷）
 
         while not self._stop.is_set():
             # 讀取最新 frame
@@ -231,36 +266,24 @@ class YoloRuntime:
             if r.boxes.id is not None:
                 ids = r.boxes.id.int().cpu().tolist()
                 boxes = r.boxes.xywh.cpu().tolist()
-                current_ids = set(ids)
 
-                # 清理消失的 id，計算離開幾幀
-                for old_id in list(track_history.keys()):
-                    if old_id not in current_ids:
-                        disappear_counter[old_id] = disappear_counter.get(old_id, 0) + 1
-                    else:
-                        disappear_counter[old_id] = 0
-
-                # 計算上一幀在綠區的人數
-                prev_inside_ids = {i for i, z in last_zone.items() if z == "inside"}
-                inside_now_ids: set[int] = set()
+                # 統計這一幀店內的偵測數量（用於即時人數）
+                inside_count_this_frame = 0
+                # 收集 door→inside 轉換的位置（用於客流量計數）
+                door_to_inside_positions: list[tuple[int, int]] = []
 
                 # 處理每個物件
                 for obj_id, (cx, cy, w, h) in zip(ids, boxes):
                     cx = int(cx)
                     cy = int(cy)
-                    # 使用底部中心點（腳的位置）作為定位點，不受身高影響
-                    # foot_y = int(cy + h / 2)
 
-                    # in_door = cv2.pointPolygonTest(ENTRY_ROI_PTS, (cx, foot_y), False) >= 0
-                    # in_inside = cv2.pointPolygonTest(
-                    #     INSIDE_ROI_PTS, (cx, foot_y), False) >= 0
                     in_door = cv2.pointPolygonTest(ENTRY_ROI_PTS, (cx, cy), False) >= 0
                     in_inside = cv2.pointPolygonTest(
                         INSIDE_ROI_PTS, (cx, cy), False) >= 0
 
                     if in_inside:
                         zone_now = "inside"
-                        inside_now_ids.add(obj_id)
+                        inside_count_this_frame += 1
                     elif in_door:
                         zone_now = "door"
                     else:
@@ -268,33 +291,34 @@ class YoloRuntime:
 
                     zone_prev = last_zone.get(obj_id, "none")
 
-                    # 通知條件：上一幀綠區沒人 + 這個人從 door 進 inside
-                    if (
-                        current_time - last_notify_ts > self.notify_cooldown
-                        and len(prev_inside_ids) == 0
-                        and zone_prev == "door"
-                        and zone_now == "inside"
-                    ):
-                        last_notify_ts = current_time
-                        snap = annotated_frame.copy()
-                        self._submit_notify_job(snap)
+                    # 偵測 door → inside 轉換（用於客流量 + 通知）
+                    if zone_prev == "door" and zone_now == "inside":
+                        door_to_inside_positions.append((cx, cy))
 
-                        cv2.putText(
-                            img=annotated_frame,
-                            text="Notify",
-                            org=(1650, 30),
-                            fontFace=cv2.FONT_HERSHEY_DUPLEX,
-                            fontScale=1,
-                            color=(35, 0, 255),
-                            thickness=2,
-                        )
+                        # 通知條件：上一幀店內沒人 + 有人從門口進店
+                        if (
+                            current_time - last_notify_ts > self.notify_cooldown
+                            and prev_inside_count == 0
+                        ):
+                            last_notify_ts = current_time
+                            snap = annotated_frame.copy()
+                            self._submit_notify_job(snap)
+
+                            cv2.putText(
+                                img=annotated_frame,
+                                text="Notify",
+                                org=(1650, 30),
+                                fontFace=cv2.FONT_HERSHEY_DUPLEX,
+                                fontScale=1,
+                                color=(35, 0, 255),
+                                thickness=2,
+                            )
 
                     last_zone[obj_id] = zone_now
 
-                    # 軌跡（使用底部中心點）
+                    # 軌跡
                     if obj_id not in track_history:
                         track_history[obj_id] = []
-                    # track_history[obj_id].append((cx, foot_y))
                     track_history[obj_id].append((cx, cy))
                     if len(track_history[obj_id]) > 20:
                         track_history[obj_id] = track_history[obj_id][-20:]
@@ -309,51 +333,30 @@ class YoloRuntime:
                                 thickness=2,
                             )
 
-                    # 繪製定位點（底部中心）
+                    # 繪製定位點
                     cv2.circle(
                         img=annotated_frame,
-                        # center=(cx, foot_y),
                         center=(cx, cy),
                         radius=5,
                         color=(252, 0, 168),
                         thickness=2,
                     )
 
-                # 計算 new_entries / leaves（正常有偵測的情況） ---
-                new_entries = inside_now_ids - prev_inside_ids
-                leaves = prev_inside_ids - inside_now_ids
+                # === 更新狀態 ===
+                # 1. 即時人數：直接用偵測數量（不依賴 ID 穩定性）
+                self.shop_state_manager.set_inside_count(inside_count_this_frame)
+                prev_inside_count = inside_count_this_frame
 
-                # !!! 如果某個 inside ID 的 disappear_counter 太大，也當成 leaves
-                for pid in list(prev_inside_ids):
-                    if disappear_counter.get(pid, 0) > MAX_DISAPPEAR:
-                        leaves.add(pid)
-                        # 從狀態裡移除
-                        track_history.pop(pid, None)
-                        disappear_counter.pop(pid, None)
-                        last_zone.pop(pid, None)
+                # 2. 客流量：door→inside + 位置去重（避免 ID 跳動重複計數）
+                for x, y in door_to_inside_positions:
+                    if self.entry_counter.try_count(x, y):
+                        self.shop_state_manager.record_entry()
+                        logger.debug("Entry counted at (%d, %d)", x, y)
 
-                if new_entries or leaves:
-                    self._update_shop_state(new_entries=new_entries, leaves=leaves)
             else:
-                # ✅ 這一幀完全沒偵測到人 (r.boxes.id is None)
-                prev_inside_ids = {i for i, z in last_zone.items() if z == "inside"}
-                leaves: set[int] = set()
-
-                # 把所有既有 ID 的 disappear_counter +1
-                for old_id in list(track_history.keys()):
-                    disappear_counter[old_id] = disappear_counter.get(old_id, 0) + 1
-
-                for pid in list(prev_inside_ids):
-                    if disappear_counter.get(pid, 0) > MAX_DISAPPEAR:
-                        leaves.add(pid)
-                        track_history.pop(pid, None)
-                        disappear_counter.pop(pid, None)
-                        last_zone.pop(pid, None)
-
-                if leaves:
-                    logger.debug(
-                        "No detections, leaves after disappea > %d: %s", MAX_DISAPPEAR, leaves)
-                    self._update_shop_state(new_entries=set(), leaves=leaves)
+                # 這一幀完全沒偵測到人 → 店內人數 = 0
+                self.shop_state_manager.set_inside_count(0)
+                prev_inside_count = 0
 
             # FPS 顯示
             cv2.putText(
@@ -398,12 +401,6 @@ class YoloRuntime:
     def _on_click(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
             logger.debug("Mouse click coordinate: (%d, %d)", x, y)
-
-    def _update_shop_state(self, new_entries: set[int], leaves: set[int]):
-        for _id in new_entries:
-            self.shop_state_manager.record_entry()
-        for _id in leaves:
-            self.shop_state_manager.exit_one()
 
     def _submit_notify_job(self, frame):
         if not (self.worker and self.line_cfg and self.r2):

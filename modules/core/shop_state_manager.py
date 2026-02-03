@@ -22,6 +22,7 @@ class ShopState:
         self.system_alerts_enabled = enabled
 
     def record_entry(self):
+        """記錄一次進店（客流量 +1）"""
         now = datetime.now()
         today = now.date()
 
@@ -31,12 +32,12 @@ class ShopState:
             self._current_date = today
 
         self.today_visits += 1
-        self.inside_count += 1
         self.last_entry_ts = now
         self.entry_log.append(now)
 
-    def exit_one(self):
-        self.inside_count = max(0, self.inside_count - 1)
+    def set_inside_count(self, count: int):
+        """直接設定店內人數（基於偵測數量）"""
+        self.inside_count = max(0, count)
 
     def had_visitor_in_last_minutes(self, mins=10):
         now = datetime.now()
@@ -66,6 +67,7 @@ class ShopStateManager:
     # === 更新用 API（給 YoloRuntime 呼叫）===
 
     def record_entry(self) -> None:
+        """記錄一次進店（客流量 +1），寫入記憶體 + SQLite"""
         with self._lock:
             self._state.record_entry()
 
@@ -75,9 +77,10 @@ class ShopStateManager:
         except Exception as e:
             logger.exception("Failed to record entry to DB")
 
-    def exit_one(self) -> None:
+    def set_inside_count(self, count: int) -> None:
+        """直接設定店內人數（基於即時偵測數量）"""
         with self._lock:
-            self._state.exit_one()
+            self._state.set_inside_count(count)
 
     def set_system_alerts(self, enabled: bool) -> None:
         with self._lock:
