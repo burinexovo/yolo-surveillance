@@ -154,9 +154,9 @@ class YoloRuntime:
         self.reader = get_reader()
 
         # --- YOLO 模型 ---
-        if not cfg.yolo11_model_26m_path:
-            raise RuntimeError("YOLO11_MODEL_26m_PATH 未設定")
-        self.model = YOLO(str(cfg.yolo11_model_26m_path))
+        if not cfg.yolo26_model_m_path:
+            raise RuntimeError("YOLO26_MODEL_M_PATH 未設定")
+        self.model = YOLO(str(cfg.yolo26_model_m_path))
 
         # --- 通知冷卻時間 ---
         # settings.notify_cooldown 是 float / Optional[float]
