@@ -10,3 +10,4 @@ data/
 .*.ipynb
 *.json
 *.sh
+draw_roi.jpg

@@ -12,7 +12,8 @@ from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = Path(__file__).parent.parent / "data" / "visitors.db"
+# 專案根目錄的 data/visitors.db
+DB_PATH = Path(__file__).parent.parent.parent / "data" / "visitors.db"
 
 
 @dataclass

@@ -154,9 +154,9 @@ class YoloRuntime:
         self.reader = get_reader()
 
         # --- YOLO 模型 ---
-        if not cfg.yolo11_model_m_path:
-            raise RuntimeError("YOLO11_MODEL_M_PATH 未設定")
-        self.model = YOLO(str(cfg.yolo11_model_m_path))
+        if not cfg.yolo11_model_26m_path:
+            raise RuntimeError("YOLO11_MODEL_26m_PATH 未設定")
+        self.model = YOLO(str(cfg.yolo11_model_26m_path))
 
         # --- 通知冷卻時間 ---
         # settings.notify_cooldown 是 float / Optional[float]
@@ -212,11 +212,14 @@ class YoloRuntime:
                 frame,
                 tracker=tracker_cfg,
                 persist=True,
-                conf=0.5,
-                iou=0.6,
-                classes=[47, 49],  # !!~ 橘子、蘋果
-                # classes=[19],  # 暫時用牛防止誤報
+                conf=0.15,
+                iou=0.30,
+                max_det=40,
+                # classes=[47, 49],  # !!~ 橘子、蘋果
+                classes=[0],
                 verbose=False
+                # imgsz=1280,
+                # augment=True, # 會變很慢
             )
             r = results[0]
             annotated_frame = r.plot()
@@ -247,12 +250,16 @@ class YoloRuntime:
                 # 處理每個物件
                 for obj_id, (cx, cy, w, h) in zip(ids, boxes):
                     cx = int(cx)
+                    cy = int(cy)
                     # 使用底部中心點（腳的位置）作為定位點，不受身高影響
-                    foot_y = int(cy + h / 2)
+                    # foot_y = int(cy + h / 2)
 
-                    in_door = cv2.pointPolygonTest(ENTRY_ROI_PTS, (cx, foot_y), False) >= 0
+                    # in_door = cv2.pointPolygonTest(ENTRY_ROI_PTS, (cx, foot_y), False) >= 0
+                    # in_inside = cv2.pointPolygonTest(
+                    #     INSIDE_ROI_PTS, (cx, foot_y), False) >= 0
+                    in_door = cv2.pointPolygonTest(ENTRY_ROI_PTS, (cx, cy), False) >= 0
                     in_inside = cv2.pointPolygonTest(
-                        INSIDE_ROI_PTS, (cx, foot_y), False) >= 0
+                        INSIDE_ROI_PTS, (cx, cy), False) >= 0
 
                     if in_inside:
                         zone_now = "inside"
@@ -290,7 +297,8 @@ class YoloRuntime:
                     # 軌跡（使用底部中心點）
                     if obj_id not in track_history:
                         track_history[obj_id] = []
-                    track_history[obj_id].append((cx, foot_y))
+                    # track_history[obj_id].append((cx, foot_y))
+                    track_history[obj_id].append((cx, cy))
                     if len(track_history[obj_id]) > 20:
                         track_history[obj_id] = track_history[obj_id][-20:]
 
@@ -307,7 +315,8 @@ class YoloRuntime:
                     # 繪製定位點（底部中心）
                     cv2.circle(
                         img=annotated_frame,
-                        center=(cx, foot_y),
+                        # center=(cx, foot_y),
+                        center=(cx, cy),
                         radius=5,
                         color=(252, 0, 168),
                         thickness=2,
