@@ -1,0 +1,20 @@
+{
+  "cameras": {
+    "cam1": {"label": "門口攝影機"},
+    "cam2": {"label": "店內攝影機"}
+  },
+  "notifications": {
+    "entry_cooldown": 10.0,
+    "after_hours_cooldown": 600.0
+  },
+  "after_hours": {
+    "mon": [{"start": "23:00", "end": "06:30"}],
+    "tue": [{"start": "23:00", "end": "06:30"}],
+    "wed": [{"start": "23:00", "end": "06:30"}],
+    "thu": [{"start": "23:00", "end": "06:30"}],
+    "fri": [{"start": "23:00", "end": "06:30"}],
+    "sat": [{"start": "23:00", "end": "06:30"}],
+    "sun": [{"start": "00:00", "end": "23:59"}]
+  },
+  "dashboard_pin": "your-pin-here"
+}
