@@ -221,6 +221,10 @@ class YoloRuntime:
         last_zone = self.last_zone
         prev_inside_count = 0  # 上一幀店內人數（用於通知判斷）
 
+        # 連續幀驗證：避免偵測閃爍導致誤判
+        empty_frame_count = 0
+        EMPTY_THRESHOLD = 30  # 連續 30 幀（約 1 秒）沒偵測到才算店內無人
+
         while not self._stop.is_set():
             # 讀取最新 frame
             if not self.reader:
@@ -251,8 +255,8 @@ class YoloRuntime:
                 frame,
                 tracker=tracker_cfg,
                 persist=True,
-                conf=0.40,      # 提高信心閾值：減少低品質偵測
-                iou=0.50,       # 提高 IOU：更嚴格的 NMS，避免一人多框
+                conf=0.25,      # 降低閾值，讓更多偵測進來，由 ByteTrack 過濾
+                iou=0.45,       # 稍微降低，減少漏檢
                 max_det=10,     # 降低最大偵測數：店內不會有太多人
                 classes=[0],    # 只偵測人
                 verbose=False
@@ -351,7 +355,16 @@ class YoloRuntime:
                 # === 更新狀態 ===
                 # 1. 即時人數：直接用偵測數量（不依賴 ID 穩定性）
                 self.shop_state_manager.set_inside_count(inside_count_this_frame)
-                prev_inside_count = inside_count_this_frame
+
+                # 連續幀驗證：避免偵測閃爍
+                if inside_count_this_frame > 0:
+                    empty_frame_count = 0
+                    prev_inside_count = inside_count_this_frame
+                else:
+                    empty_frame_count += 1
+                    # 只有連續多幀沒人才更新 prev_inside_count = 0
+                    if empty_frame_count >= EMPTY_THRESHOLD:
+                        prev_inside_count = 0
 
                 # 2. 客流量：door→inside + 位置去重（避免 ID 跳動重複計數）
                 for x, y in door_to_inside_positions:
@@ -376,9 +389,13 @@ class YoloRuntime:
                                 total_detected)
 
             else:
-                # 這一幀完全沒偵測到人 → 店內人數 = 0
+                # 這一幀完全沒偵測到人
                 self.shop_state_manager.set_inside_count(0)
-                prev_inside_count = 0
+
+                # 連續幀驗證：避免偵測閃爍
+                empty_frame_count += 1
+                if empty_frame_count >= EMPTY_THRESHOLD:
+                    prev_inside_count = 0
 
             # FPS 顯示
             cv2.putText(
