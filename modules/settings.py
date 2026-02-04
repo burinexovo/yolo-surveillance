@@ -93,6 +93,11 @@ class Settings(BaseSettings):
     # =========================
     user_id_file_path: Optional[Path] = None
 
+    # ======================
+    # YOLO Model Architecture Paths
+    # ======================
+    yolo26_model_arch_p2_path: Optional[Path] = None
+
     # =========================
     # YOLO Model paths
     # =========================

@@ -39,7 +39,8 @@ class SpatialEntryCounter:
     def __init__(self, cooldown_seconds: float = 5.0, radius: float = 100.0):
         self.cooldown = cooldown_seconds
         self.radius = radius
-        self.recent_entries: list[tuple[float, float, float]] = []  # [(x, y, timestamp), ...]
+        # [(x, y, timestamp), ...]
+        self.recent_entries: list[tuple[float, float, float]] = []
 
     def try_count(self, x: float, y: float) -> bool:
         """
@@ -192,7 +193,12 @@ class YoloRuntime:
         # --- YOLO 模型 ---
         if not cfg.yolo26_model_m_path:
             raise RuntimeError("YOLO26_MODEL_M_PATH 未設定")
-        self.model = YOLO(str(cfg.yolo26_model_m_path))
+
+        if not cfg.yolo26_model_arch_p2_path:
+            raise RuntimeError("YOLO26_MODEL_ARCH_P2_PATH 未設定")
+
+        self.model = YOLO(str(cfg.yolo26_model_arch_p2_path)
+                          ).load(str(cfg.yolo26_model_m_path))
 
         # --- 通知冷卻時間（從 shop.json 讀取）---
         shop_cfg = get_shop_config()
@@ -257,7 +263,7 @@ class YoloRuntime:
             )
             r = results[0]
             annotated_frame = r.plot()
-            
+
             # !!~ 繪製 ROI用
             # cv2.imwrite("draw_roi.jpg", annotated_frame)
 
@@ -370,7 +376,8 @@ class YoloRuntime:
                         annotated_frame,
                         msg=f"⚠️ 非營業時段偵測到 {total_detected} 人"
                     )
-                    logger.info("After-hours alert: detected %d person(s)", total_detected)
+                    logger.info("After-hours alert: detected %d person(s)",
+                                total_detected)
 
             else:
                 # 這一幀完全沒偵測到人 → 店內人數 = 0
