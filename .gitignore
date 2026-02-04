@@ -17,3 +17,4 @@ draw_roi.jpg
 *.pt
 *.onnx
 *.engine
+*.ppt
