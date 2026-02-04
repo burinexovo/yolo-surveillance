@@ -1,12 +1,9 @@
 from aiortc import VideoStreamTrack
 from av import VideoFrame
 from modules.video.rtsp_reader import RTSPReader
+from utils import TARGET_WIDTH, TARGET_HEIGHT
 import asyncio
 import cv2
-
-# 預設目標解析度 (720p)
-TARGET_WIDTH = 1280
-TARGET_HEIGHT = 720
 
 
 class RTSPVideoTrack(VideoStreamTrack):

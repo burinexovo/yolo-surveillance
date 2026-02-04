@@ -24,6 +24,17 @@ from utils.r2_keys import make_datetime_key
 from utils import (
     ENTRY_ROI_PTS,
     INSIDE_ROI_PTS,
+    YOLO_CONF,
+    YOLO_IOU,
+    YOLO_MAX_DET,
+    YOLO_CLASSES,
+    EMPTY_THRESHOLD,
+    SPATIAL_ENTRY_COOLDOWN,
+    SPATIAL_ENTRY_RADIUS,
+    TRACK_HISTORY_MAX_LEN,
+    RECORDER_FPS,
+    RECORDER_SEGMENT_MINUTES,
+    EVENT_WORKER_MAX_QUEUE,
 )
 import logging
 
@@ -98,7 +109,10 @@ class YoloRuntime:
 
     # 位置去重計數器（解決 ID 不穩定問題）
     entry_counter: SpatialEntryCounter = field(
-        default_factory=lambda: SpatialEntryCounter(cooldown_seconds=5.0, radius=100.0)
+        default_factory=lambda: SpatialEntryCounter(
+            cooldown_seconds=SPATIAL_ENTRY_COOLDOWN,
+            radius=SPATIAL_ENTRY_RADIUS,
+        )
     )
 
     notify_cooldown: float = 10.0
@@ -157,7 +171,7 @@ class YoloRuntime:
 
         # --- 背景事件 worker（送通知用）---
         self.worker = EventWorker(WorkerConfig(
-            max_queue=10,
+            max_queue=EVENT_WORKER_MAX_QUEUE,
             drop_if_full=True,
         ))
 
@@ -179,12 +193,12 @@ class YoloRuntime:
             camera_id="cam1",  # 輸出到 recordings/cam1/{date}/
             save_raw=True,
             save_annot=False,
-            fps=30,
-            segment_minutes=3,
+            fps=RECORDER_FPS,
+            segment_minutes=RECORDER_SEGMENT_MINUTES,
         ))
         self.rec.start()
 
-        self.recording_worker = RecordingWorker(self.rec, RecordingConfig(fps=30))
+        self.recording_worker = RecordingWorker(self.rec, RecordingConfig(fps=RECORDER_FPS))
         self.recording_worker.start()
 
         # --- RTSP 讀取 ---
@@ -223,7 +237,6 @@ class YoloRuntime:
 
         # 連續幀驗證：避免偵測閃爍導致誤判
         empty_frame_count = 0
-        EMPTY_THRESHOLD = 30  # 連續 30 幀（約 1 秒）沒偵測到才算店內無人
 
         while not self._stop.is_set():
             # 讀取最新 frame
@@ -255,10 +268,10 @@ class YoloRuntime:
                 frame,
                 tracker=tracker_cfg,
                 persist=True,
-                conf=0.25,      # 降低閾值，讓更多偵測進來，由 ByteTrack 過濾
-                iou=0.45,       # 稍微降低，減少漏檢
-                max_det=10,     # 降低最大偵測數：店內不會有太多人
-                classes=[0],    # 只偵測人
+                conf=YOLO_CONF,
+                iou=YOLO_IOU,
+                max_det=YOLO_MAX_DET,
+                classes=YOLO_CLASSES,
                 verbose=False
             )
             r = results[0]
@@ -330,8 +343,8 @@ class YoloRuntime:
                     if obj_id not in track_history:
                         track_history[obj_id] = []
                     track_history[obj_id].append((cx, cy))
-                    if len(track_history[obj_id]) > 20:
-                        track_history[obj_id] = track_history[obj_id][-20:]
+                    if len(track_history[obj_id]) > TRACK_HISTORY_MAX_LEN:
+                        track_history[obj_id] = track_history[obj_id][-TRACK_HISTORY_MAX_LEN:]
 
                     if len(track_history[obj_id]) >= 2:
                         for i in range(1, len(track_history[obj_id])):
