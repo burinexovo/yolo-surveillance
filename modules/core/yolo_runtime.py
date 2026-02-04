@@ -29,6 +29,20 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _is_after_hours(start_str: str, end_str: str) -> bool:
+    """判斷是否為非營業時段"""
+    now = datetime.now().time()
+    start = datetime.strptime(start_str, "%H:%M").time()
+    end = datetime.strptime(end_str, "%H:%M").time()
+
+    if start > end:
+        # 跨午夜：23:00 - 06:30
+        return now >= start or now <= end
+    else:
+        # 同日：例如 09:00 - 18:00
+        return start <= now <= end
+
+
 class SpatialEntryCounter:
     """
     位置去重計數器：同一位置在冷卻時間內只計算一次進店。
@@ -213,6 +227,7 @@ class YoloRuntime:
 
         prev_time = 0.0
         last_notify_ts = 0.0
+        last_after_hours_notify_ts = 0.0  # 非營業時段通知冷卻
         track_history = self.track_history
         last_zone = self.last_zone
         prev_inside_count = 0  # 上一幀店內人數（用於通知判斷）
@@ -267,8 +282,9 @@ class YoloRuntime:
                 ids = r.boxes.id.int().cpu().tolist()
                 boxes = r.boxes.xywh.cpu().tolist()
 
-                # 統計這一幀店內的偵測數量（用於即時人數）
+                # 統計這一幀店內/門口的偵測數量
                 inside_count_this_frame = 0
+                door_count_this_frame = 0
                 # 收集 door→inside 轉換的位置（用於客流量計數）
                 door_to_inside_positions: list[tuple[int, int]] = []
 
@@ -286,6 +302,7 @@ class YoloRuntime:
                         inside_count_this_frame += 1
                     elif in_door:
                         zone_now = "door"
+                        door_count_this_frame += 1
                     else:
                         zone_now = "none"
 
@@ -353,6 +370,20 @@ class YoloRuntime:
                         self.shop_state_manager.record_entry()
                         logger.debug("Entry counted at (%d, %d)", x, y)
 
+                # 3. 非營業時段逗留通知
+                total_detected = inside_count_this_frame + door_count_this_frame
+                if (
+                    _is_after_hours(cfg.after_hours_start, cfg.after_hours_end)
+                    and total_detected > 0
+                    and current_time - last_after_hours_notify_ts > cfg.after_hours_notify_cooldown
+                ):
+                    last_after_hours_notify_ts = current_time
+                    self._submit_notify_job(
+                        annotated_frame,
+                        msg=f"⚠️ 非營業時段偵測到 {total_detected} 人"
+                    )
+                    logger.info("After-hours alert: detected %d person(s)", total_detected)
+
             else:
                 # 這一幀完全沒偵測到人 → 店內人數 = 0
                 self.shop_state_manager.set_inside_count(0)
@@ -402,7 +433,7 @@ class YoloRuntime:
         if event == cv2.EVENT_LBUTTONDOWN:
             logger.debug("Mouse click coordinate: (%d, %d)", x, y)
 
-    def _submit_notify_job(self, frame):
+    def _submit_notify_job(self, frame, msg: str = "有人進店囉"):
         if not (self.worker and self.line_cfg and self.r2):
             return
 
@@ -442,7 +473,7 @@ class YoloRuntime:
             try:
                 push_message(
                     cfg=line_cfg,
-                    msg=f"{now_str}\n有人進店囉",
+                    msg=f"{now_str}\n{msg}",
                     img_url=url,
                 )
             except Exception as e:

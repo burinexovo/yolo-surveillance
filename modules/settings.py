@@ -107,6 +107,13 @@ class Settings(BaseSettings):
     # =========================
     notify_cooldown: Optional[float] = 10.0
 
+    # =========================
+    # After Hours Alert
+    # =========================
+    after_hours_start: str = "23:00"  # 非營業時段開始（HH:MM）
+    after_hours_end: str = "06:30"    # 非營業時段結束（HH:MM）
+    after_hours_notify_cooldown: float = 600.0  # 冷卻時間（秒），預設 10 分鐘
+
     # ======================
     # Local Url
     # ======================

@@ -5,6 +5,7 @@ playgrounds/
 workers/
 logs/
 data/
+note/
 .env
 .*.py
 .*.ipynb
