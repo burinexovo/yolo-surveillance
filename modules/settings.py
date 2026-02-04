@@ -2,8 +2,11 @@
 from pydantic_settings import BaseSettings
 from pydantic import BaseModel
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from functools import lru_cache
+
+if TYPE_CHECKING:
+    from modules.core.shop_config import ShopConfig
 
 
 class CameraConfig(BaseModel):
@@ -59,15 +62,18 @@ class Settings(BaseSettings):
     # =========================
     # Camera 1 (with YOLO)
     camera1_id: str = "cam1"
-    camera1_label: str = "門口攝影機"
     camera1_rtsp_url: Optional[str] = None  # 回退到 device_camera0
     camera1_has_yolo: bool = True
 
     # Camera 2 (view only)
     camera2_id: str = "cam2"
-    camera2_label: str = "店內攝影機"
     camera2_rtsp_url: Optional[str] = None
     camera2_has_yolo: bool = False
+
+    # =========================
+    # Shop Config (JSON)
+    # =========================
+    shop_config_path: Optional[Path] = Path("config/shop.json")
 
     # =========================
     # Directories
@@ -102,18 +108,6 @@ class Settings(BaseSettings):
     tracker_botsort_path: Optional[Path] = None
     tracker_bytetrack_path: Optional[Path] = None
 
-    # =========================
-    # Alert / Notify Controls
-    # =========================
-    notify_cooldown: Optional[float] = 10.0
-
-    # =========================
-    # After Hours Alert
-    # =========================
-    after_hours_start: str = "23:00"  # 非營業時段開始（HH:MM）
-    after_hours_end: str = "06:30"    # 非營業時段結束（HH:MM）
-    after_hours_notify_cooldown: float = 600.0  # 冷卻時間（秒），預設 10 分鐘
-
     # ======================
     # Local Url
     # ======================
@@ -123,11 +117,6 @@ class Settings(BaseSettings):
     # Internal token
     # ======================
     internal_token: Optional[str] = None
-
-    # ======================
-    # Dashboard PIN
-    # ======================
-    dashboard_pin: Optional[str] = None
 
     # ======================
     # Debug Mode
@@ -153,6 +142,8 @@ class Settings(BaseSettings):
 
     def get_cameras(self) -> list[CameraConfig]:
         """取得所有已設定的攝影機列表"""
+        from modules.core.shop_config import get_shop_config
+        shop_cfg = get_shop_config()
         cameras = []
 
         # Camera 1 (用 device_camera0 作為回退)
@@ -160,7 +151,7 @@ class Settings(BaseSettings):
         if cam1_url:
             cameras.append(CameraConfig(
                 camera_id=self.camera1_id,
-                label=self.camera1_label,
+                label=shop_cfg.get_camera_label(self.camera1_id),
                 rtsp_url=cam1_url,
                 has_yolo=self.camera1_has_yolo,
             ))
@@ -169,7 +160,7 @@ class Settings(BaseSettings):
         if self.camera2_rtsp_url:
             cameras.append(CameraConfig(
                 camera_id=self.camera2_id,
-                label=self.camera2_label,
+                label=shop_cfg.get_camera_label(self.camera2_id),
                 rtsp_url=self.camera2_rtsp_url,
                 has_yolo=self.camera2_has_yolo,
             ))

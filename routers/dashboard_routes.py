@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from modules.storage.visitor_db import visitor_db
 from modules.core.shop_state_manager import shop_state_manager
+from modules.core.shop_config import get_shop_config
 
 logger = logging.getLogger(__name__)
 
@@ -218,15 +219,15 @@ async def pin_login(request: Request, body: PinLoginRequest):
     # 順便清理過期 token
     _cleanup_expired_tokens()
 
-    settings = _get_settings(request)
+    shop_cfg = get_shop_config()
 
     # 檢查是否有設定 PIN
-    if not settings.dashboard_pin:
-        logger.warning("PIN login attempted but DASHBOARD_PIN not configured")
+    if not shop_cfg.dashboard_pin:
+        logger.warning("PIN login attempted but dashboard_pin not configured in shop.json")
         raise HTTPException(status_code=503, detail="PIN login not configured")
 
     # 驗證 PIN
-    if body.pin != settings.dashboard_pin:
+    if body.pin != shop_cfg.dashboard_pin:
         logger.info("PIN login failed: incorrect PIN from IP=%s", client_ip)
         return PinLoginResponse(
             success=False,

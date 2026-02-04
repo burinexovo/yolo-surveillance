@@ -10,6 +10,7 @@ note/
 .*.py
 .*.ipynb
 *.json
+!config/shop.json
 *.sh
 draw_roi.jpg
 # Model weights (too large for git)

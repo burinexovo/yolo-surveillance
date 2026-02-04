@@ -18,6 +18,7 @@ from modules.core.event_worker import WorkerConfig, EventWorker
 from modules.video.rtsp_reader import RTSPReader
 from modules.settings import Settings
 from modules.core.shop_state_manager import ShopStateManager
+from modules.core.shop_config import get_shop_config
 from modules.video.video_source import get_reader
 from utils.r2_keys import make_datetime_key
 from utils import (
@@ -27,20 +28,6 @@ from utils import (
 import logging
 
 logger = logging.getLogger(__name__)
-
-
-def _is_after_hours(start_str: str, end_str: str) -> bool:
-    """判斷是否為非營業時段"""
-    now = datetime.now().time()
-    start = datetime.strptime(start_str, "%H:%M").time()
-    end = datetime.strptime(end_str, "%H:%M").time()
-
-    if start > end:
-        # 跨午夜：23:00 - 06:30
-        return now >= start or now <= end
-    else:
-        # 同日：例如 09:00 - 18:00
-        return start <= now <= end
 
 
 class SpatialEntryCounter:
@@ -207,9 +194,9 @@ class YoloRuntime:
             raise RuntimeError("YOLO26_MODEL_M_PATH 未設定")
         self.model = YOLO(str(cfg.yolo26_model_m_path))
 
-        # --- 通知冷卻時間 ---
-        # settings.notify_cooldown 是 float / Optional[float]
-        self.notify_cooldown = float(cfg.notify_cooldown or 10.0)
+        # --- 通知冷卻時間（從 shop.json 讀取）---
+        shop_cfg = get_shop_config()
+        self.notify_cooldown = shop_cfg.entry_cooldown
 
     # === 主迴圈 ===
 
@@ -372,10 +359,11 @@ class YoloRuntime:
 
                 # 3. 非營業時段逗留通知
                 total_detected = inside_count_this_frame + door_count_this_frame
+                shop_cfg = get_shop_config()
                 if (
-                    _is_after_hours(cfg.after_hours_start, cfg.after_hours_end)
+                    shop_cfg.is_after_hours()
                     and total_detected > 0
-                    and current_time - last_after_hours_notify_ts > cfg.after_hours_notify_cooldown
+                    and current_time - last_after_hours_notify_ts > shop_cfg.after_hours_cooldown
                 ):
                     last_after_hours_notify_ts = current_time
                     self._submit_notify_job(
