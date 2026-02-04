@@ -96,12 +96,15 @@ class Settings(BaseSettings):
     # =========================
     # YOLO Model paths
     # =========================
-    yolo11_model_l_path: Optional[Path] = None
-    yolo11_model_m_path: Optional[Path] = None
-    yolo11_model_s_path: Optional[Path] = None
     yolo11_model_n_path: Optional[Path] = None
+    yolo11_model_s_path: Optional[Path] = None
+    yolo11_model_m_path: Optional[Path] = None
+    yolo11_model_l_path: Optional[Path] = None
+    
+    yolo26_model_n_path: Optional[Path] = None
+    yolo26_model_s_path: Optional[Path] = None
     yolo26_model_m_path: Optional[Path] = None
-    yolo26_model_m_p2_path: Optional[Path] = None
+    yolo26_model_l_path: Optional[Path] = None
 
     # =========================
     # Trackers

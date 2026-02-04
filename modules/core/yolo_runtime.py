@@ -191,10 +191,10 @@ class YoloRuntime:
         self.reader = get_reader()
 
         # --- YOLO 模型 ---
-        if not cfg.yolo26_model_m_p2_path:
-            raise RuntimeError("YOLO26_MODEL_M_P2_PATH 未設定")
+        if not cfg.yolo26_model_m_path:
+            raise RuntimeError("YOLO26_MODEL_M_PATH 未設定")
 
-        self.model = YOLO(str(cfg.yolo26_model_m_p2_path))
+        self.model = YOLO(str(cfg.yolo26_model_m_path))
 
         # --- 通知冷卻時間（從 shop.json 讀取）---
         shop_cfg = get_shop_config()
