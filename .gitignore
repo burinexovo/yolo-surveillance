@@ -13,6 +13,11 @@ note/
 !config/shop.example.json
 *.sh
 draw_roi.jpg
+
+# Windows service scripts (contain local paths)
+scripts/start_server.bat
+scripts/start_tunnel.bat
+scripts/cleanup_recordings.bat
 # Model weights (too large for git)
 *.pt
 *.onnx

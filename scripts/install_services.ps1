@@ -3,8 +3,11 @@
 # Usage: Right-click PowerShell -> Run as Administrator -> cd to project -> .\scripts\install_services.ps1
 
 param(
-    [string]$ProjectPath = "D:\Code\yolo-surveillance",
-    [string]$LogPath = "D:\tcm-logs"
+    [Parameter(Mandatory=$true)]
+    [string]$ProjectPath,
+
+    [Parameter(Mandatory=$true)]
+    [string]$LogPath
 )
 
 # Check if running as Administrator
