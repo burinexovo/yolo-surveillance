@@ -1,53 +1,53 @@
-# === TCM 服務移除腳本 (PowerShell) ===
-# 需要以管理員身份執行
+# === TCM Service Uninstall Script (PowerShell) ===
+# Run as Administrator
 
-# 檢查是否以管理員身份執行
+# Check if running as Administrator
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
-    Write-Host "錯誤: 請以管理員身份執行此腳本" -ForegroundColor Red
+    Write-Host "Error: Please run this script as Administrator" -ForegroundColor Red
     exit 1
 }
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  TCM 服務移除程式" -ForegroundColor Cyan
+Write-Host "  TCM Service Uninstaller" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
-# 確認
-$confirm = Read-Host "確定要移除 tcm-server 和 tcm-tunnel 服務嗎? (y/N)"
+# Confirm
+$confirm = Read-Host "Are you sure you want to remove tcm-server and tcm-tunnel services? (y/N)"
 if ($confirm -ne "y" -and $confirm -ne "Y") {
-    Write-Host "已取消" -ForegroundColor Yellow
+    Write-Host "Cancelled" -ForegroundColor Yellow
     exit 0
 }
 
-# 停止並移除 tcm-server
-Write-Host "[1/2] 移除 tcm-server..." -ForegroundColor Yellow
+# Stop and remove tcm-server
+Write-Host "[1/2] Removing tcm-server..." -ForegroundColor Yellow
 $status = nssm status tcm-server 2>$null
 if ($LASTEXITCODE -eq 0) {
     nssm stop tcm-server 2>$null
     Start-Sleep -Seconds 2
     nssm remove tcm-server confirm
-    Write-Host "  tcm-server 已移除" -ForegroundColor Green
+    Write-Host "  tcm-server removed" -ForegroundColor Green
 } else {
-    Write-Host "  tcm-server 服務不存在，跳過" -ForegroundColor Gray
+    Write-Host "  tcm-server service not found, skipping" -ForegroundColor Gray
 }
 
-# 停止並移除 tcm-tunnel
-Write-Host "[2/2] 移除 tcm-tunnel..." -ForegroundColor Yellow
+# Stop and remove tcm-tunnel
+Write-Host "[2/2] Removing tcm-tunnel..." -ForegroundColor Yellow
 $status = nssm status tcm-tunnel 2>$null
 if ($LASTEXITCODE -eq 0) {
     nssm stop tcm-tunnel 2>$null
     Start-Sleep -Seconds 2
     nssm remove tcm-tunnel confirm
-    Write-Host "  tcm-tunnel 已移除" -ForegroundColor Green
+    Write-Host "  tcm-tunnel removed" -ForegroundColor Green
 } else {
-    Write-Host "  tcm-tunnel 服務不存在，跳過" -ForegroundColor Gray
+    Write-Host "  tcm-tunnel service not found, skipping" -ForegroundColor Gray
 }
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Green
-Write-Host "  服務已移除" -ForegroundColor Green
+Write-Host "  Services Removed" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "注意: 日誌檔案未刪除，如需清理請手動刪除 D:\tcm-logs" -ForegroundColor Gray
+Write-Host "Note: Log files were not deleted. To clean up, manually delete D:\tcm-logs" -ForegroundColor Gray
 Write-Host ""
