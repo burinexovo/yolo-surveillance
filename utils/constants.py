@@ -9,7 +9,7 @@ TARGET_HEIGHT = 720
 # =========================
 # YOLO 偵測參數
 # =========================
-YOLO_CONF = 0.25        # 信心閾值
+YOLO_CONF = 0.4         # 信心閾值（提高以減少誤檢）
 YOLO_IOU = 0.45         # NMS IOU 閾值
 YOLO_MAX_DET = 10       # 最大偵測數
 YOLO_CLASSES = [0]      # 偵測類別（0 = person）
