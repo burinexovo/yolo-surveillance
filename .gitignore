@@ -24,4 +24,4 @@ scripts/cleanup_recordings.bat
 *.pt
 *.onnx
 *.engine
-*.ppt
+*.pptCLAUDE.md
