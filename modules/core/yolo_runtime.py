@@ -225,7 +225,8 @@ class YoloRuntime:
 
         window_name = "YOLO11n - Camera"
         if self.show_window:
-            cv2.namedWindow(window_name)
+            # 使用 WINDOW_NORMAL 允許視窗縮放，避免高解析度畫面超出螢幕被裁切
+            cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
             cv2.setMouseCallback(window_name, self._on_click)
 
         prev_time = 0.0
