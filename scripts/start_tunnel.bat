@@ -1,5 +1,5 @@
 @echo off
-REM === Cloudflare Tunnel 啟動腳本 (供 NSSM 服務使用) ===
+REM === Cloudflare Tunnel Startup Script (for NSSM service) ===
 
-REM === 啟動 cloudflared tunnel ===
-cloudflared tunnel run tcm-backend
+REM === Start cloudflared tunnel (use full absolute path for service context) ===
+"C:\Users\User\AppData\Local\Microsoft\WinGet\Packages\Cloudflare.cloudflared_Microsoft.Winget.Source_8wekyb3d8bbwe\cloudflared.exe" tunnel run tcm-backend
