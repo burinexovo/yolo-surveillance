@@ -12,7 +12,9 @@ note/
 *.json
 !config/shop.example.json
 *.sh
-draw_roi.jpg
+# ROI debug output (root level only)
+/draw_roi.jpg
+!assets/photos/draw_roi.jpg
 
 # Windows service scripts (contain local paths)
 scripts/start_server.bat

@@ -2,14 +2,14 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10+-blue?logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/YOLO-v11-00FFFF?logo=yolo&logoColor=white" alt="YOLO">
+  <img src="https://img.shields.io/badge/YOLO-v11%20|%20v26-00FFFF?logo=yolo&logoColor=white" alt="YOLO">
   <img src="https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white" alt="FastAPI">
   <img src="https://img.shields.io/badge/WebRTC-Enabled-orange?logo=webrtc&logoColor=white" alt="WebRTC">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="License">
 </p>
 
 <p align="center">
-  <b>基於 YOLO11 的即時人流偵測與追蹤系統，整合 WebRTC 低延遲串流、LINE 即時通知、智慧訪客統計</b>
+  <b>基於 Ultralytics YOLO 的即時人流偵測與追蹤系統，整合 WebRTC 低延遲串流、LINE 即時通知、智慧訪客統計</b>
 </p>
 
 ---
@@ -27,6 +27,17 @@
       <p align="center"><em>訪客統計儀表板</em></p>
     </td>
   </tr>
+  <tr>
+    <td width="50%">
+      <!-- TODO: 補上 LINE 通知截圖 (assets/photos/line-notify.jpg) -->
+      <p align="center"><code>📱 LINE 通知截圖待補充</code></p>
+      <p align="center"><em>LINE 即時推播通知</em></p>
+    </td>
+    <td width="50%">
+      <img src="assets/photos/draw_roi.jpg" alt="ROI 設定工具">
+      <p align="center"><em>ROI 區域互動設定工具</em></p>
+    </td>
+  </tr>
 </table>
 
 ---
@@ -35,7 +46,7 @@
 
 | 功能 | 描述 |
 |------|------|
-| 🎯 **即時人員偵測** | YOLO11 模型，支援多種尺寸 (n/s/m/l)，可依硬體效能調整 |
+| 🎯 **即時人員偵測** | 支援 YOLO11/YOLO26 模型，多種尺寸可選 (n/s/m/l)，依硬體效能調整 |
 | 🔄 **多目標追蹤** | ByteTrack 演算法，穩定追蹤每位訪客的移動軌跡 |
 | 📍 **ROI 區域判定** | 自訂多邊形區域，精準判定「門口進入 → 店內」的訪客動線 |
 | 📊 **智慧統計分析** | 每小時/每日客流量、尖峰時段分析、歷史趨勢圖表 |
@@ -55,9 +66,9 @@
                                   │
                                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Detection & Tracking Layer                    │
+│                    Detection & Tracking Layer                   │
 │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────┐  │
-│  │   YOLO11 Model  │ -> │   ByteTrack     │ -> │  ROI Check  │  │
+│  │  YOLO (v11/v26) │ -> │   ByteTrack     │ -> │  ROI Check  │  │
 │  │   (Inference)   │    │   (Tracking)    │    │  (Entry)    │  │
 │  └─────────────────┘    └─────────────────┘    └─────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
@@ -94,13 +105,14 @@
 
 ## 🔧 技術實現重點
 
-### 1. YOLO11 即時推論引擎
+### 1. YOLO 即時推論引擎
 
 ```python
 # 核心推論迴圈 - 每秒處理 15-30 幀
 def _loop(self):
     while self.running:
         frame = self.rtsp_reader.read()
+        # 支援 YOLO11 / YOLO26 等多種模型版本
         results = self.model.track(frame, persist=True, tracker="bytetrack.yaml")
 
         for box in results[0].boxes:
@@ -113,7 +125,8 @@ def _loop(self):
 ```
 
 **技術亮點：**
-- 使用 Ultralytics YOLO11，支援 ONNX/TensorRT 加速
+- 使用 Ultralytics YOLO，支援 v11/v26 等版本靈活切換
+- 支援 ONNX/TensorRT 加速推論
 - ByteTrack 多目標追蹤，解決遮擋與 ID 跳變問題
 - 自適應幀率控制，平衡效能與準確度
 
@@ -178,7 +191,7 @@ class EventWorker:
 
 | 類別 | 技術 |
 |------|------|
-| **深度學習** | PyTorch, Ultralytics YOLO11, ByteTrack |
+| **深度學習** | PyTorch, Ultralytics YOLO (v11/v26), ByteTrack |
 | **後端框架** | FastAPI, Uvicorn, Pydantic |
 | **即時通訊** | aiortc (WebRTC), WebSocket |
 | **資料庫** | SQLite3 |
@@ -294,7 +307,7 @@ winget install nssm
 
 | 指標 | 數值 |
 |------|------|
-| 推論延遲 | ~30ms (YOLO11n, RTX 3060) |
+| 推論延遲 | ~30ms (YOLO26m, RTX 3060) |
 | 串流延遲 | <500ms (WebRTC) |
 | 追蹤準確度 | >95% (ByteTrack) |
 | 記憶體使用 | ~800MB |
