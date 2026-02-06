@@ -117,6 +117,10 @@ class YoloRuntime:
 
     notify_cooldown: float = 10.0
 
+    # Track 清理設定
+    _last_cleanup_time: float = field(init=False, default=0.0)
+    _cleanup_interval: float = 60.0  # 每 60 秒清理一次
+
     def start(self) -> None:
         """由外部呼叫，啟動整個 YOLO runtime。"""
         self._stop.clear()
@@ -402,6 +406,9 @@ class YoloRuntime:
                     logger.info("After-hours alert: detected %d person(s)",
                                 total_detected)
 
+                # 4. 定期清理過期的追蹤記錄
+                self._cleanup_stale_tracks(set(ids))
+
             else:
                 # 這一幀完全沒偵測到人
                 self.shop_state_manager.set_inside_count(0)
@@ -451,6 +458,38 @@ class YoloRuntime:
         # loop 結束 → 等 stop() 做正式清理
 
     # === 小工具 ===
+    def _cleanup_stale_tracks(self, active_ids: set) -> None:
+        """
+        清理已離開畫面的追蹤記錄，避免記憶體無限增長。
+        只保留當前活躍的 track_id。
+        """
+        current_time = time.time()
+
+        # 檢查是否需要清理（每 _cleanup_interval 秒一次）
+        if current_time - self._last_cleanup_time < self._cleanup_interval:
+            return
+
+        self._last_cleanup_time = current_time
+
+        # 找出過期的 ID
+        stale_history_ids = set(self.track_history.keys()) - active_ids
+        stale_zone_ids = set(self.last_zone.keys()) - active_ids
+
+        # 清理
+        cleaned_count = 0
+        for stale_id in stale_history_ids:
+            self.track_history.pop(stale_id, None)
+            cleaned_count += 1
+        for stale_id in stale_zone_ids:
+            self.last_zone.pop(stale_id, None)
+
+        if cleaned_count > 0:
+            logger.debug(
+                "Cleaned %d stale tracks. Active: %d, History size: %d, Zone size: %d",
+                cleaned_count, len(active_ids),
+                len(self.track_history), len(self.last_zone)
+            )
+
     def _on_click(self, event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
             logger.debug("Mouse click coordinate: (%d, %d)", x, y)
