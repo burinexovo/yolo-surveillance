@@ -16,6 +16,7 @@ from .constants import (
     ENTRY_ROI_PTS,
     INSIDE_ROI,
     INSIDE_ROI_PTS,
+    EXCLUDE_ZONES,
 )
 
 __all__ = [
@@ -36,4 +37,5 @@ __all__ = [
     "ENTRY_ROI_PTS",
     "INSIDE_ROI",
     "INSIDE_ROI_PTS",
+    "EXCLUDE_ZONES",
 ]

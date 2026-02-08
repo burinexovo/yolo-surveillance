@@ -24,6 +24,7 @@ from utils.r2_keys import make_datetime_key
 from utils import (
     ENTRY_ROI_PTS,
     INSIDE_ROI_PTS,
+    EXCLUDE_ZONES,
     YOLO_CONF,
     YOLO_IOU,
     YOLO_MAX_DET,
@@ -304,6 +305,10 @@ class YoloRuntime:
                     cx = int(cx)
                     cy = int(cy)
 
+                    # 排除區域過濾（老鷹擺設等靜態物誤判）
+                    if self._is_in_exclude_zone(cx, cy):
+                        continue
+
                     in_door = cv2.pointPolygonTest(ENTRY_ROI_PTS, (cx, cy), False) >= 0
                     in_inside = cv2.pointPolygonTest(
                         INSIDE_ROI_PTS, (cx, cy), False) >= 0
@@ -458,6 +463,13 @@ class YoloRuntime:
         # loop 結束 → 等 stop() 做正式清理
 
     # === 小工具 ===
+    def _is_in_exclude_zone(self, cx: int, cy: int) -> bool:
+        """檢查座標是否在排除區域內（用於過濾誤判，如老鷹擺設）"""
+        for x1, y1, x2, y2 in EXCLUDE_ZONES:
+            if x1 <= cx <= x2 and y1 <= cy <= y2:
+                return True
+        return False
+
     def _cleanup_stale_tracks(self, active_ids: set) -> None:
         """
         清理已離開畫面的追蹤記錄，避免記憶體無限增長。
