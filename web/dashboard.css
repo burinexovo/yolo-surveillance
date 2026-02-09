@@ -602,190 +602,96 @@ footer p {
 /* === 錄影回放區域 === */
 .recording-section {
     background: var(--bg-card);
-    border-radius: 16px;
-    padding: 24px;
-    margin-top: 24px;
-    border: 1px solid var(--border-color);
-}
-
-.recording-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-    gap: 12px;
-}
-
-.recording-header h3 {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.recording-header h3::before {
-    content: '';
-    width: 4px;
-    height: 20px;
-    background: var(--gradient-orange);
-    border-radius: 2px;
-}
-
-.recording-controls {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-}
-
-.recording-controls input[type="date"] {
-    padding: 10px 14px;
-    background: var(--btn-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    color: var(--text-primary);
-    font-size: 14px;
-    cursor: pointer;
-}
-
-.camera-select {
-    padding: 10px 14px;
-    background: var(--btn-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    color: var(--text-primary);
-    font-size: 14px;
-    cursor: pointer;
-    min-width: 140px;
-}
-
-.camera-select:focus {
-    outline: none;
-    border-color: var(--accent-blue);
-}
-
-.recording-controls input[type="date"]::-webkit-calendar-picker-indicator {
-    filter: var(--calendar-filter, none);
-    cursor: pointer;
-}
-
-html[data-theme="dark"] .recording-controls input[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(1);
-}
-
-.recording-summary {
-    font-size: 13px;
-    color: var(--text-secondary);
-}
-
-/* 時間線 */
-.timeline-container {
-    margin-bottom: 24px;
-}
-
-.timeline-labels {
-    display: flex;
-    justify-content: space-between;
-    font-size: 11px;
-    color: var(--text-secondary);
-    margin-bottom: 6px;
-    padding: 0 2px;
-}
-
-.timeline-track {
-    position: relative;
-    height: 40px;
-    background: var(--bg-primary);
-    border-radius: 8px;
+    border-radius: 15px;
+    padding: 20px;
+    margin: 20px 0;
     overflow: hidden;
     border: 1px solid var(--border-color);
 }
 
-.timeline-clip {
-    position: absolute;
-    top: 4px;
-    height: 20px;
-    background: var(--accent-blue);
-    border-radius: 4px;
-    cursor: pointer;
-    opacity: 0.8;
-    transition: all 0.2s ease;
-    min-width: 3px;
+/* 錄影標題區 */
+.recording-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    gap: 15px;
 }
 
-.timeline-clip:hover {
-    opacity: 1;
-    transform: scaleY(1.2);
-    z-index: 10;
+.recording-header h3 {
+    margin: 0;
+    flex-shrink: 0;
 }
 
-.timeline-clip.active {
-    opacity: 1;
-    background: var(--accent-green);
-    box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+/* 錄影控制區 */
+.recording-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
 }
 
-.timeline-event {
-    position: absolute;
-    top: 26px;
-    width: 0;
-    height: 0;
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-bottom: 10px solid var(--accent-yellow);
-    cursor: pointer;
-    transition: transform 0.2s ease;
-    transform: translateX(-6px);
+.recording-controls select,
+.recording-controls input[type="date"] {
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background-color: var(--btn-bg);
+    color: var(--text-primary);
+    font-size: 14px;
+    flex: 1;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
-.timeline-event:hover {
-    transform: translateX(-6px) scale(1.3);
-    z-index: 20;
+/* 修正日期選擇器溢出 */
+.recording-controls input[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+    font-family: inherit;
 }
 
-.timeline-event::after {
-    content: attr(data-time);
-    position: absolute;
-    top: 14px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 10px;
+/* 錄影摘要資訊 */
+.recording-summary {
+    font-size: 13px;
     color: var(--text-secondary);
     white-space: nowrap;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    pointer-events: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1;
+    max-width: 100%;
 }
 
-.timeline-event:hover::after {
-    opacity: 1;
-}
-
-/* 影片播放器 */
-.player-container {
-    margin-bottom: 24px;
-}
-
-.player-container video {
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    background: #000;
-    border-radius: 12px;
-}
-
+/* ===== 播放器控制按鈕 ===== */
 .player-info {
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
-    gap: 20px;
-    margin-top: 12px;
+    margin-top: 15px;
+    gap: 10px;
+    padding: 0 5px;
 }
 
 .player-info button {
-    padding: 8px 16px;
-    font-size: 13px;
+    padding: 10px 12px;
+    background-color: var(--btn-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    white-space: nowrap;
+    min-width: 85px;
+    flex-shrink: 0;
+    transition: all 0.2s;
+}
+
+.player-info button:hover:not(:disabled) {
+    background-color: var(--btn-bg-hover);
+    border-color: var(--accent-blue);
 }
 
 .player-info button:disabled {
@@ -794,110 +700,162 @@ html[data-theme="dark"] .recording-controls input[type="date"]::-webkit-calendar
 }
 
 #clipInfo {
-    font-size: 14px;
-    color: var(--text-secondary);
-    min-width: 180px;
+    flex: 1;
     text-align: center;
+    font-size: 14px;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    padding: 0 5px;
 }
 
-/* 錄影片段列表 */
+/* ===== 錄影片段列表 ===== */
+.clips-list-container {
+    max-height: 400px;
+    overflow-y: auto;
+    background-color: var(--bg-primary);
+    border-radius: 12px;
+    margin-top: 20px;
+    border: 1px solid var(--border-color);
+}
+
 .clips-list-container h4 {
-    font-size: 14px;
-    font-weight: 600;
+    margin: 0;
+    padding: 15px;
+    position: sticky;
+    top: 0;
+    background-color: var(--bg-card);
+    z-index: 1;
+    border-bottom: 1px solid var(--border-color);
     color: var(--text-primary);
-    margin-bottom: 12px;
 }
 
 .clips-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    max-height: 150px;
-    overflow-y: auto;
-    padding: 4px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding: 15px;
 }
 
-.clip-item {
-    padding: 8px 14px;
-    background: var(--bg-primary);
+.clips-list button {
+    width: 100%;
+    padding: 12px 8px;
+    text-align: center;
+    font-size: 14px;
+    background-color: var(--btn-bg);
+    color: var(--text-primary);
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    font-size: 13px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.clip-item:hover {
-    background: var(--btn-bg-hover);
+.clips-list button:hover {
+    background-color: var(--btn-bg-hover);
     border-color: var(--accent-blue);
 }
 
-.clip-item.active {
-    background: var(--accent-blue);
+.clips-list button.active {
+    background-color: var(--accent-blue);
     color: white;
     border-color: var(--accent-blue);
 }
 
 .no-clips {
-    color: var(--text-secondary);
-    font-size: 13px;
-    padding: 20px;
+    grid-column: 1 / -1;
     text-align: center;
-    width: 100%;
+    padding: 40px;
+    color: var(--text-secondary);
 }
 
-/* 響應式設計 */
+/* ===== 手機響應式設計 ===== */
 @media (max-width: 768px) {
     .recording-header {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
+        gap: 12px;
     }
 
     .recording-controls {
-        width: 100%;
         flex-direction: column;
         align-items: stretch;
-        gap: 10px;
-    }
-
-    .recording-controls .camera-select {
         width: 100%;
-        min-width: unset;
     }
 
+    .recording-controls select,
     .recording-controls input[type="date"] {
         width: 100%;
-        max-width: 100%;
-        min-width: 0;  /* 修復 flexbox 溢出 */
-        box-sizing: border-box;
-    }
-
-    .recording-section {
-        overflow: hidden;  /* 防止子元素溢出 */
+        flex: none;
     }
 
     .recording-summary {
-        text-align: center;
+        text-align: left;
+        width: 100%;
+        font-size: 12px;
+        padding: 5px 0;
     }
 
+    /* 播放器按鈕優化 */
     .player-info {
-        flex-direction: row;
-        flex-wrap: nowrap;
         gap: 8px;
+        padding: 0;
     }
 
     .player-info button {
-        padding: 6px 10px;
+        min-width: 75px;
+        padding: 8px 10px;
+        font-size: 13px;
+    }
+
+    #clipInfo {
+        font-size: 13px;
+        padding: 0 3px;
+    }
+
+    /* 片段列表 */
+    .clips-list {
+        gap: 10px;
+        padding: 12px;
+    }
+
+    .clips-list button {
+        font-size: 13px;
+        padding: 10px 6px;
+    }
+}
+
+/* ===== 極小螢幕優化 ===== */
+@media (max-width: 480px) {
+    .recording-section {
+        padding: 15px 12px;
+    }
+
+    .recording-controls input[type="date"] {
+        font-size: 13px;
+        padding: 8px 10px;
+    }
+
+    .recording-summary {
+        font-size: 11px;
+    }
+
+    .player-info button {
+        min-width: 65px;
+        padding: 7px 8px;
         font-size: 12px;
-        white-space: nowrap;
     }
 
     #clipInfo {
         font-size: 12px;
-        min-width: 100px;
     }
 
-    .timeline-labels {
-        font-size: 10px;
+    .clips-list button {
+        font-size: 12px;
+        padding: 9px 5px;
     }
 }
