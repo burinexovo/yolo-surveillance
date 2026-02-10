@@ -812,11 +812,18 @@ const recording = {
     },
 };
 
+// === Loading 控制 ===
+function hideAuthLoading() {
+    const el = document.getElementById("authLoading");
+    if (el) el.classList.add("hidden");
+}
+
 // === Dashboard 初始化函式 ===
 async function initDashboard() {
     try {
         await verifyDashboardAuth();
-        // 驗證成功，載入資料
+        // 驗證成功，隱藏 loading 並載入資料
+        hideAuthLoading();
         refreshAll();
 
         // 初始化錄影回放模組
@@ -839,6 +846,7 @@ async function initDashboard() {
         // Token 無效，清除並顯示登入畫面
         localStorage.removeItem("pin_token");
         token = null;
+        hideAuthLoading();
         pinLogin.show();
     }
 }
@@ -849,10 +857,11 @@ window.addEventListener("load", () => {
     pinLogin.init();
 
     if (token) {
-        // 有 Token，嘗試驗證
+        // 有 Token，嘗試驗證（loading 畫面已預設顯示）
         initDashboard();
     } else {
-        // 沒有 Token，顯示 PIN 登入
+        // 沒有 Token，直接隱藏 loading 並顯示 PIN 登入
+        hideAuthLoading();
         pinLogin.show();
     }
 });

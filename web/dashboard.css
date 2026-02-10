@@ -492,6 +492,57 @@ footer p {
     background: var(--text-secondary);
 }
 
+/* === 驗證 Loading 畫面 === */
+.auth-loading {
+    position: fixed;
+    inset: 0;
+    background: var(--bg-primary);
+    display: grid;
+    place-items: center;
+    z-index: 2000;
+    transition: opacity 0.3s ease;
+}
+
+.auth-loading.hidden {
+    opacity: 0;
+    pointer-events: none;
+    display: none;
+}
+
+.auth-loading .loader {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+.auth-loading .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: var(--accent-blue, #1e88ff);
+    animation: auth-bounce 0.8s ease-in-out infinite;
+}
+
+.auth-loading .dot:nth-child(1) { animation-delay: 0s; }
+.auth-loading .dot:nth-child(2) { animation-delay: 0.12s; }
+.auth-loading .dot:nth-child(3) { animation-delay: 0.24s; }
+.auth-loading .dot:nth-child(4) { animation-delay: 0.36s; }
+
+@keyframes auth-bounce {
+    0%, 100% { transform: translateY(0); opacity: 0.7; }
+    50%      { transform: translateY(-10px); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .auth-loading .dot {
+        animation: auth-fade 1s ease-in-out infinite;
+    }
+    @keyframes auth-fade {
+        0%, 100% { opacity: 0.4; }
+        50% { opacity: 1; }
+    }
+}
+
 /* === PIN 登入畫面 === */
 .login-overlay {
     position: fixed;

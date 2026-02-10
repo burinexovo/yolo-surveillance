@@ -566,6 +566,12 @@ function connectWebSocket() {
 //   return await res.json(); // { ok, uid, scope }
 // }
 
+// === Loading 控制 ===
+function hideAuthLoading() {
+  const el = document.getElementById("authLoading");
+  if (el) el.style.display = "none";
+}
+
 // === 7. 初始化 WebRTC 連線 ===
 
 async function initWatch() {
@@ -580,6 +586,8 @@ async function initWatch() {
 
     const rtcConfig = await getRtcConfigOrThrow();
     console.log("rtc-config ok:", rtcConfig);
+    // ✅ 驗證成功，隱藏 auth loading
+    hideAuthLoading();
     // ✅ 到這裡，才開始 WebRTC / WebSocket
     createPeerConnection(rtcConfig);
     connectWebSocket();
@@ -588,6 +596,7 @@ async function initWatch() {
     // Token 無效，清除並顯示登入畫面
     localStorage.removeItem("pin_token");
     token = null;
+    hideAuthLoading();
     hideLoading();
     pinLogin.show();
   }
@@ -604,10 +613,11 @@ window.addEventListener("load", () => {
   pinLogin.init();
 
   if (token) {
-    // 有 Token，嘗試連線
+    // 有 Token，嘗試連線（auth loading 已預設顯示）
     initWatch();
   } else {
-    // 沒有 Token，顯示 PIN 登入
+    // 沒有 Token，直接隱藏 loading 並顯示 PIN 登入
+    hideAuthLoading();
     pinLogin.show();
   }
 });

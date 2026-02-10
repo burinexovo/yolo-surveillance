@@ -467,6 +467,35 @@
 		</style>
 	</head>
 	<body>
+		<!-- 驗證中 Loading（預設顯示，驗證完成後隱藏） -->
+		<div id="authLoading" style="
+			position:fixed; inset:0; background:var(--bg-primary);
+			display:grid; place-items:center; z-index:2000;
+			transition:opacity .3s ease;
+		">
+			<div style="display:flex; align-items:flex-end; gap:10px;" role="status">
+				<span class="auth-dot" style="animation-delay:0s"></span>
+				<span class="auth-dot" style="animation-delay:0.12s"></span>
+				<span class="auth-dot" style="animation-delay:0.24s"></span>
+				<span class="auth-dot" style="animation-delay:0.36s"></span>
+			</div>
+		</div>
+		<style>
+			.auth-dot {
+				width:12px; height:12px; border-radius:999px;
+				background:var(--accent-blue, #1e88ff);
+				animation: auth-bounce 0.8s ease-in-out infinite;
+			}
+			@keyframes auth-bounce {
+				0%,100% { transform:translateY(0); opacity:0.7; }
+				50%     { transform:translateY(-10px); opacity:1; }
+			}
+			@media (prefers-reduced-motion:reduce) {
+				.auth-dot { animation: auth-fade 1s ease-in-out infinite; }
+				@keyframes auth-fade { 0%,100%{opacity:.4} 50%{opacity:1} }
+			}
+		</style>
+
 		<!-- PIN 登入畫面 -->
 		<div id="loginOverlay" class="hidden">
 			<div class="login-card">
@@ -517,6 +546,6 @@
 		</footer>
 
 		<script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
-		<script src="/web/watch.js?v=20260130_1155"></script>
+		<script src="/web/watch.js?v=20260210_1049"></script>
 	</body>
 </html>
