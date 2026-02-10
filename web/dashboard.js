@@ -559,7 +559,7 @@ const recording = {
             clip.style.width = `${width}%`;
             clip.title = `${startTime.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit" })}`;
             clip.dataset.index = idx;
-            clip.addEventListener("click", () => this.playClip(idx));
+            clip.addEventListener("click", () => this.playClip(idx, false));
 
             this.els.timeline.appendChild(clip);
         });
@@ -590,21 +590,55 @@ const recording = {
             return;
         }
 
+        // 按小時分組
+        const groups = {};
         this.recordings.forEach((rec, idx) => {
-            const startTime = new Date(rec.start_time);
-            const timeStr = startTime.toLocaleTimeString("zh-TW", {
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
+            const hour = new Date(rec.start_time).getHours();
+            if (!groups[hour]) groups[hour] = [];
+            groups[hour].push({ rec, idx });
+        });
+
+        // 按小時排序渲染
+        Object.keys(groups).sort((a, b) => Number(a) - Number(b)).forEach(hour => {
+            const items = groups[hour];
+            const hourStr = String(hour).padStart(2, "0") + ":00";
+
+            // 群組標題
+            const header = document.createElement("div");
+            header.className = "clip-group-header";
+            header.innerHTML =
+                `<span><span class="group-toggle">&#9654;</span> ${hourStr}</span>` +
+                `<span class="group-count">${items.length} 段</span>`;
+
+            // 群組內容
+            const content = document.createElement("div");
+            content.className = "clip-group-items";
+
+            items.forEach(({ rec, idx }) => {
+                const startTime = new Date(rec.start_time);
+                const timeStr = startTime.toLocaleTimeString("zh-TW", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                });
+
+                const item = document.createElement("div");
+                item.className = "clip-item";
+                item.textContent = timeStr;
+                item.dataset.index = idx;
+                item.addEventListener("click", () => this.playClip(idx, false));
+
+                content.appendChild(item);
             });
 
-            const item = document.createElement("div");
-            item.className = "clip-item";
-            item.textContent = timeStr;
-            item.dataset.index = idx;
-            item.addEventListener("click", () => this.playClip(idx));
+            // 點擊標題展開/收合
+            header.addEventListener("click", () => {
+                header.classList.toggle("expanded");
+                content.classList.toggle("expanded");
+            });
 
-            this.els.clipsList.appendChild(item);
+            this.els.clipsList.appendChild(header);
+            this.els.clipsList.appendChild(content);
         });
     },
 
@@ -694,9 +728,18 @@ const recording = {
             el.classList.toggle("active", idx === this.currentIndex);
         });
 
-        // 更新片段列表高亮
-        this.els.clipsList.querySelectorAll(".clip-item").forEach((el, idx) => {
-            el.classList.toggle("active", idx === this.currentIndex);
+        // 更新片段列表高亮，並自動展開所屬群組
+        this.els.clipsList.querySelectorAll(".clip-item").forEach(el => {
+            const isActive = Number(el.dataset.index) === this.currentIndex;
+            el.classList.toggle("active", isActive);
+
+            if (isActive) {
+                const groupItems = el.closest(".clip-group-items");
+                if (groupItems && !groupItems.classList.contains("expanded")) {
+                    groupItems.classList.add("expanded");
+                    groupItems.previousElementSibling?.classList.add("expanded");
+                }
+            }
         });
     },
 
