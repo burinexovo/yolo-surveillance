@@ -7,12 +7,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Dict, Any, Union
 
-from linebot.v3.messaging.models.broadcast_request import BroadcastRequest
-from linebot.v3.messaging.models.push_message_request import PushMessageRequest
 from linebot.v3.messaging import (
     Configuration,
     ApiClient,
     MessagingApi,
+    BroadcastRequest,
+    MulticastRequest,
     TextMessage,
     ImageMessage,
 )
@@ -43,32 +43,23 @@ def broadcast_message(cfg: LineConfig, msg: str) -> None:
 
 def push_message(cfg: LineConfig, msg: str, img_url: Optional[str] = None) -> None:
     users = load_users(cfg.user_file)
-    configuration = Configuration(access_token=cfg.access_token)
 
+    to = [uid for uid, info in users.items()
+          if info.get("notifications_enabled", True)]
+    if not to:
+        return
+
+    messages = [TextMessage(text=msg)]
+    if img_url:
+        messages.append(ImageMessage(
+            originalContentUrl=img_url,
+            previewImageUrl=img_url,
+        ))
+
+    configuration = Configuration(access_token=cfg.access_token)
     with ApiClient(configuration) as api_client:
         msg_api = MessagingApi(api_client)
-
-        for uid, info in users.items():
-            if not info.get("notifications_enabled", True):
-                continue
-
-            if img_url:
-                msg_api.push_message(
-                    PushMessageRequest(
-                        to=uid,
-                        messages=[
-                            TextMessage(text=msg),
-                            ImageMessage(
-                                originalContentUrl=img_url,
-                                previewImageUrl=img_url,
-                            ),
-                        ],
-                    )
-                )
-            else:
-                msg_api.push_message(
-                    PushMessageRequest(
-                        to=uid,
-                        messages=[TextMessage(text=msg)],
-                    )
-                )
+        msg_api.multicast(
+            MulticastRequest(to=to, messages=messages),
+            x_line_retry_key=str(uuid.uuid4()),
+        )
