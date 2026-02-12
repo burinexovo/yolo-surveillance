@@ -56,6 +56,16 @@ class ShopStateManager:
         self._state = ShopState()
         self._lock = threading.Lock()
         self._db = None  # lazy import 避免循環引用
+        self._restore_from_db()
+
+    def _restore_from_db(self) -> None:
+        """啟動時從 SQLite 恢復今日訪客數"""
+        try:
+            db = self._get_db()
+            self._state.today_visits = db.get_today_visits()
+            logger.info("從 DB 恢復今日訪客數: %d", self._state.today_visits)
+        except Exception as e:
+            logger.warning("無法從 DB 恢復訪客數: %s", e)
 
     def _get_db(self):
         """延遲載入 visitor_db 避免循環引用"""
