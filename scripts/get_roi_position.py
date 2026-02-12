@@ -1,6 +1,34 @@
 import cv2
 import numpy as np
 
+# 門口多邊形區域
+ENTRY_ROI = np.array([
+    (1, 601),
+    (439, 701),
+    (659, 1001),
+    (999, 1201),
+    (1399, 1201),
+    (1449, 1296),
+    (1, 1296),
+], np.int32)
+
+ENTRY_ROI_PTS = ENTRY_ROI.reshape((-1, 1, 2))
+
+# 店內多邊形區域
+INSIDE_ROI = np.array([
+    (1, 600),
+    (1, 1),
+    (2304, 1),
+    (2304, 1296),
+    (1450, 1296),
+    (1400, 1200),
+    (1000, 1200),
+    (660, 1000),
+    (440, 700),
+], np.int32)
+
+INSIDE_ROI_PTS = INSIDE_ROI.reshape((-1, 1, 2))
+
 # 全域變數存點
 points = []
 histories = []
@@ -29,6 +57,7 @@ def main():
     global points, img, temp_img, polygon_closed
 
     img = cv2.imread("assets/photos/draw_roi.jpg")
+    height, width = img.shape[:2]
     if img is None:
         print("❌ 找不到圖片 draw_roi.jpg")
         return
@@ -37,12 +66,28 @@ def main():
     temp_img = img.copy()
     histories.append(img.copy())
 
-    cv2.namedWindow(window_name)
+    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+    cv2.resizeWindow(window_name, width, height)
     cv2.setMouseCallback(window_name, on_click)
 
     while True:
         cv2.imshow(window_name, temp_img)
         key = cv2.waitKey(20) & 0xFF
+        # ROI
+        cv2.polylines(
+            img=temp_img,
+            pts=[ENTRY_ROI_PTS],
+            isClosed=True,
+            color=(0, 0, 255),
+            thickness=5,
+        )
+        cv2.polylines(
+            img=temp_img,
+            pts=[INSIDE_ROI_PTS],
+            isClosed=True,
+            color=(255, 0, 0),
+            thickness=5,
+        )
 
         # 按 c：關閉多邊形（連回第一點）
         if key == ord('c'):
@@ -85,7 +130,7 @@ def main():
         # 按 q：離開，印出座標
         elif key == ord('q'):
             break
-
+    
     cv2.destroyAllWindows()
 
     if points:
