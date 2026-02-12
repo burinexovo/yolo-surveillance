@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from routers.dashboard_routes import verify_token
 
 router = APIRouter(
-    prefix="/alerts",
+    prefix="/api/alerts",
     tags=["alerts"],
 )
 

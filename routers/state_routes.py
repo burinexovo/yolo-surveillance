@@ -5,7 +5,7 @@ from fastapi import APIRouter
 from modules.core.shop_state_manager import shop_state_manager
 
 
-router = APIRouter()
+router = APIRouter(prefix="/api", tags=["state"])
 
 
 @router.get("/shop-state")
