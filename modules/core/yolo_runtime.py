@@ -40,6 +40,7 @@ from utils import (
 import logging
 
 logger = logging.getLogger(__name__)
+static_img = cv2.imread('assets/photos/draw_roi.jpg')
 
 
 class SpatialEntryCounter:
@@ -203,7 +204,8 @@ class YoloRuntime:
         ))
         self.rec.start()
 
-        self.recording_worker = RecordingWorker(self.rec, RecordingConfig(fps=RECORDER_FPS))
+        self.recording_worker = RecordingWorker(
+            self.rec, RecordingConfig(fps=RECORDER_FPS))
         self.recording_worker.start()
 
         # --- RTSP 讀取 ---
@@ -520,7 +522,7 @@ class YoloRuntime:
         def notify_job():
             # 1) 語音提醒
             if audio_path:
-                play_alert_async(times=1, audio_path=audio_path)
+                play_alert_async(times=3, audio_path=audio_path)
 
             # 2) resize + encode
             resize_frame = cv2.resize(snap, (960, 540))

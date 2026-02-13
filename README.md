@@ -18,24 +18,27 @@
 
 <table>
   <tr>
-    <td width="50%">
-      <img src="assets/photos/cctv-image.jpg" alt="即時監控畫面">
-      <p align="center"><em>即時監控 + YOLO 偵測</em></p>
-    </td>
-    <td width="50%">
-      <img src="assets/photos/dashboard-image.jpg" alt="統計儀表板">
-      <p align="center"><em>訪客統計儀表板</em></p>
+    <td>
+      <img src="assets/photos/web_watch.png" alt="即時監控畫面">
+      <p align="center"><em>▲WebRTC 即時監控畫面</em></p>
     </td>
   </tr>
   <tr>
-    <td width="50%">
-      <!-- TODO: 補上 LINE 通知截圖 (assets/photos/line-notify.jpg) -->
-      <p align="center"><code>📱 LINE 通知截圖待補充</code></p>
-      <p align="center"><em>LINE 即時推播通知</em></p>
+    <td>
+      <img src="assets/photos/web_dashboard.png" alt="統計儀表板">
+      <p align="center"><em>▲訪客統計儀表板</em></p>
     </td>
-    <td width="50%">
-      <img src="assets/photos/draw_roi.jpg" alt="ROI 設定工具">
-      <p align="center"><em>ROI 區域互動設定工具</em></p>
+  </tr>
+  <tr>
+    <td>
+      <img src="assets/photos/yolo_roi.png" alt="ROI 偵測">
+      <p align="center"><em>▲ROI 區域辨識入店偵測</em></p>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="assets/photos/line_alert.png" width="300" alt="LINE 推播通知">
+      <p><em>▲LINE 即時推播通知（手機版）</em></p>
     </td>
   </tr>
 </table>
@@ -44,16 +47,16 @@
 
 ## ✨ 功能特色
 
-| 功能 | 描述 |
-|------|------|
-| 🎯 **即時人員偵測** | 支援 YOLO11/YOLO26 模型，多種尺寸可選 (n/s/m/l)，依硬體效能調整 |
-| 🔄 **多目標追蹤** | ByteTrack 演算法，穩定追蹤每位訪客的移動軌跡 |
-| 📍 **ROI 區域判定** | 自訂多邊形區域，精準判定「門口進入 → 店內」的訪客動線 |
-| 📊 **智慧統計分析** | 每小時/每日客流量、尖峰時段分析、歷史趨勢圖表 |
-| 📱 **LINE 即時通知** | 訪客進店即時推播，附帶截圖，支援多用戶訂閱 |
-| 🎥 **WebRTC 串流** | 超低延遲 (<500ms) 即時影像，支援遠端監控 |
-| 💾 **事件錄影** | 自動錄製並上傳至 Cloudflare R2，支援 HLS 回放 |
-| 🔔 **音效警報** | TTS 語音播報 + 自訂提示音 |
+| 功能                 | 描述                                                            |
+| -------------------- | --------------------------------------------------------------- |
+| 🎯 **即時人員偵測**  | 支援 YOLO11/YOLO26 模型，多種尺寸可選 (n/s/m/l)，依硬體效能調整 |
+| 🔄 **多目標追蹤**    | ByteTrack 演算法，穩定追蹤每位訪客的移動軌跡                    |
+| 📍 **ROI 區域判定**  | 自訂多邊形區域，精準判定「門口進入 → 店內」的訪客動線           |
+| 📊 **智慧統計分析**  | 每小時/每日客流量、尖峰時段分析、歷史趨勢圖表                   |
+| 📱 **LINE 即時通知** | 訪客進店即時推播，附帶截圖，支援多用戶訂閱                      |
+| 🎥 **WebRTC 串流**   | 超低延遲 (<500ms) 即時影像，支援遠端監控                        |
+| 💾 **事件錄影**      | 自動錄製並上傳至 Cloudflare R2，支援 HLS 回放                   |
+| 🔔 **音效警報**      | TTS 語音播報 + 自訂提示音                                       |
 
 ---
 
@@ -125,6 +128,7 @@ def _loop(self):
 ```
 
 **技術亮點：**
+
 - 使用 Ultralytics YOLO，支援 v11/v26 等版本靈活切換
 - 支援 ONNX/TensorRT 加速推論
 - ByteTrack 多目標追蹤，解決遮擋與 ID 跳變問題
@@ -141,6 +145,7 @@ class RTSPVideoTrack(MediaStreamTrack):
 ```
 
 **技術亮點：**
+
 - aiortc 實現純 Python WebRTC
 - STUN/TURN 穿透 NAT，支援 4G/5G 網路
 - 動態碼率調整，適應不同網路環境
@@ -161,6 +166,7 @@ class ShopStateManager:
 ```
 
 **技術亮點：**
+
 - Thread-safe 設計，避免競態條件
 - 跨日自動重置計數器
 - SQLite 持久化 + 記憶體快取雙層架構
@@ -181,6 +187,7 @@ class EventWorker:
 ```
 
 **技術亮點：**
+
 - 生產者-消費者模式，主執行緒不阻塞
 - 可配置佇列大小與溢滿策略
 - 失敗重試機制
@@ -189,16 +196,16 @@ class EventWorker:
 
 ## 🛠️ 技術棧
 
-| 類別 | 技術 |
-|------|------|
-| **深度學習** | PyTorch, Ultralytics YOLO (v11/v26), ByteTrack |
-| **後端框架** | FastAPI, Uvicorn, Pydantic |
-| **即時通訊** | aiortc (WebRTC), WebSocket |
-| **資料庫** | SQLite3 |
-| **影像處理** | OpenCV, FFmpeg, PyAV |
+| 類別         | 技術                                             |
+| ------------ | ------------------------------------------------ |
+| **深度學習** | PyTorch, Ultralytics YOLO (v11/v26), ByteTrack   |
+| **後端框架** | FastAPI, Uvicorn, Pydantic                       |
+| **即時通訊** | aiortc (WebRTC), WebSocket                       |
+| **資料庫**   | SQLite3                                          |
+| **影像處理** | OpenCV, FFmpeg, PyAV                             |
 | **雲端服務** | Cloudflare R2/Workers/Tunnel, LINE Messaging API |
-| **前端** | Vanilla JS, Chart.js, WebRTC API |
-| **部署** | NSSM (Windows Service), Cloudflare Tunnel |
+| **前端**     | Vanilla JS, Chart.js, WebRTC API                 |
+| **部署**     | NSSM (Windows Service), Cloudflare Tunnel        |
 
 ---
 
@@ -290,27 +297,27 @@ winget install nssm
 
 ## 📊 API 端點
 
-| 方法 | 路徑 | 說明 |
-|------|------|------|
-| GET | `/watch` | 即時監控頁面 |
-| GET | `/dashboard` | 統計儀表板 |
-| GET | `/api/dashboard/realtime` | 即時統計數據 |
-| POST | `/api/dashboard/hourly` | 每小時統計 |
-| GET | `/api/dashboard/daily` | 每日統計 |
-| GET | `/api/dashboard/summary` | 摘要統計 |
-| GET | `/shop-state` | 店鋪即時狀態 |
-| WS | `/ws` | WebRTC 信令 |
+| 方法 | 路徑                      | 說明         |
+| ---- | ------------------------- | ------------ |
+| GET  | `/watch`                  | 即時監控頁面 |
+| GET  | `/dashboard`              | 統計儀表板   |
+| GET  | `/api/dashboard/realtime` | 即時統計數據 |
+| POST | `/api/dashboard/hourly`   | 每小時統計   |
+| GET  | `/api/dashboard/daily`    | 每日統計     |
+| GET  | `/api/dashboard/summary`  | 摘要統計     |
+| GET  | `/shop-state`             | 店鋪即時狀態 |
+| WS   | `/ws`                     | WebRTC 信令  |
 
 ---
 
 ## 📈 效能指標
 
-| 指標 | 數值 |
-|------|------|
-| 推論延遲 | ~30ms (YOLO26m, RTX 3060) |
-| 串流延遲 | <500ms (WebRTC) |
-| 追蹤準確度 | >95% (ByteTrack) |
-| 記憶體使用 | ~800MB |
+| 指標       | 數值                         |
+| ---------- | ---------------------------- |
+| 推論延遲   | ~30ms (YOLO26m, RTX 3060)    |
+| 串流延遲   | <500ms (WebRTC)              |
+| 追蹤準確度 | >95% (ByteTrack)             |
+| 記憶體使用 | ~800MB                       |
 | 支援解析度 | 最高 4K (2304×1296 測試通過) |
 
 ---

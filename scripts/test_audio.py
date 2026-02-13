@@ -14,7 +14,7 @@ AUDIO_ALERT_PATH = os.getenv("AUDIO_ALERT_PATH")
 
 
 init_audio(AUDIO_ALERT_PATH)
-play_alert_async(times=1, audio_path=AUDIO_ALERT_PATH)
+play_alert_async(times=3, audio_path=AUDIO_ALERT_PATH)
 
 time.sleep(10)
 

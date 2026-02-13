@@ -37,19 +37,19 @@ def init_audio(audio_path: str):
 
 
 def _alert_worker(times: int, audio_path: str):
-    for _ in range(times):
-        # 1) 提示音
-        try:
-            mixer.music.load(audio_path)
-            mixer.music.play()
-            while mixer.music.get_busy():
-                time.sleep(0.1)
-        except Exception as e:
-            logger.error("提示音播放失敗: %s", e)
+    # 1) 提示音（只播一次）
+    try:
+        mixer.music.load(audio_path)
+        mixer.music.play()
+        while mixer.music.get_busy():
+            time.sleep(0.1)
+    except Exception as e:
+        logger.error("提示音播放失敗: %s", e)
 
-        # 2) 隨機播放一個 greeting
-        if _greetings:
-            chosen = random.choice(_greetings)
+    # 2) 隨機 greeting（不重複播 times 次）
+    if _greetings:
+        picks = random.sample(_greetings, min(times, len(_greetings)))
+        for chosen in picks:
             try:
                 mixer.music.load(str(chosen))
                 mixer.music.play()
@@ -57,8 +57,7 @@ def _alert_worker(times: int, audio_path: str):
                     time.sleep(0.1)
             except Exception as e:
                 logger.error("greeting 播放失敗 (%s): %s", chosen.name, e)
-
-        time.sleep(5)
+            time.sleep(0.5)
 
 
 def play_alert_async(times: int, audio_path: str):
