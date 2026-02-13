@@ -297,16 +297,27 @@ winget install nssm
 
 ## 📊 API 端點
 
-| 方法 | 路徑                      | 說明         |
-| ---- | ------------------------- | ------------ |
-| GET  | `/watch`                  | 即時監控頁面 |
-| GET  | `/dashboard`              | 統計儀表板   |
-| GET  | `/api/dashboard/realtime` | 即時統計數據 |
-| POST | `/api/dashboard/hourly`   | 每小時統計   |
-| GET  | `/api/dashboard/daily`    | 每日統計     |
-| GET  | `/api/dashboard/summary`  | 摘要統計     |
-| GET  | `/shop-state`             | 店鋪即時狀態 |
-| WS   | `/ws`                     | WebRTC 信令  |
+> 此專案有連動 Cloudflare Workers（LINE Webhook、Token 驗證等），以下僅列出後端 FastAPI 端點，供參考。
+
+| 方法  | 路徑                                | 說明             |
+| ----- | ----------------------------------- | ---------------- |
+| GET   | `/watch`                            | 即時監控頁面     |
+| GET   | `/dashboard`                        | 統計儀表板       |
+| WS    | `/ws`                               | WebRTC 信令      |
+| GET   | `/api/shop-state`                   | 店鋪即時狀態     |
+| GET   | `/api/cameras`                      | 攝影機列表       |
+| GET   | `/api/dashboard/realtime`           | 即時統計數據     |
+| GET   | `/api/dashboard/hourly`             | 每小時統計       |
+| GET   | `/api/dashboard/daily`              | 每日統計         |
+| GET   | `/api/dashboard/summary`            | 摘要統計         |
+| POST  | `/api/dashboard/pin-login`          | PIN 碼登入       |
+| GET   | `/api/dashboard/recordings`         | 錄影片段列表     |
+| GET   | `/api/dashboard/events`             | 事件記錄列表     |
+| GET   | `/api/alerts/all-users`             | 所有使用者通知狀態 |
+| GET   | `/api/alerts/{user_id}`             | 查詢通知狀態     |
+| PATCH | `/api/alerts/{user_id}`             | 更新通知開關     |
+| GET   | `/auth/rtc-config`                  | WebRTC 連線設定  |
+| GET   | `/auth/dashboard`                   | Dashboard 驗證   |
 
 ---
 
