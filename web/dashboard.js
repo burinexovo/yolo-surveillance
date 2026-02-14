@@ -437,9 +437,19 @@ const recording = {
             clipsList: document.getElementById("clipsList"),
         };
 
-        // 設定日期選擇器預設值為今天
+        // 設定日期選擇器預設值為今天，並限制可選範圍
         const today = new Date().toISOString().split("T")[0];
         this.els.dateInput.value = today;
+        this.els.dateInput.max = today;
+
+        try {
+            const cfg = await fetchAPI("/config");
+            const minDate = new Date();
+            minDate.setDate(minDate.getDate() - cfg.retention_days);
+            this.els.dateInput.min = minDate.toISOString().split("T")[0];
+        } catch (e) {
+            console.error("Failed to load config for date range:", e);
+        }
 
         // 綁定事件
         this.els.cameraSelect.addEventListener("change", () => {

@@ -2,9 +2,14 @@ from __future__ import annotations
 
 import argparse
 import shutil
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
+
+# 讓 scripts/ 能 import 專案根目錄的模組
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from utils.constants import RECORDING_RETENTION_DAYS
 
 
 @dataclass(frozen=True)
@@ -23,7 +28,7 @@ def parse_yyyymmdd(s: str) -> datetime | None:
 
 def cleanup(cfg: CleanupConfig) -> int:
     if not cfg.root.exists():
-        print(f"⚠️ root not found: {cfg.root}")
+        print(f"root not found: {cfg.root}")
         return 0
 
     cutoff = datetime.now() - timedelta(days=cfg.keep_days)
@@ -67,7 +72,7 @@ def _delete_folder(path: Path, dry_run: bool) -> int:
     if dry_run:
         print(f"[{timestamp}] [DRY] would delete: {path}")
     else:
-        print(f"[{timestamp}] 🗑️ delete: {path}")
+        print(f"[{timestamp}] delete: {path}")
         shutil.rmtree(path, ignore_errors=False)
     return 1
 
@@ -75,7 +80,7 @@ def _delete_folder(path: Path, dry_run: bool) -> int:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default="recordings", help="recordings 根目錄")
-    ap.add_argument("--keep-days", type=int, default=10, help="保留天數")
+    ap.add_argument("--keep-days", type=int, default=RECORDING_RETENTION_DAYS, help="保留天數")
     ap.add_argument("--dry-run", action="store_true", help="只列出不刪除")
     args = ap.parse_args()
 

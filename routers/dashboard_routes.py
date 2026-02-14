@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from modules.storage.visitor_db import visitor_db
 from modules.core.shop_state_manager import shop_state_manager
 from modules.core.shop_config import get_shop_config
+from utils.constants import RECORDING_RETENTION_DAYS
 
 logger = logging.getLogger(__name__)
 
@@ -311,6 +312,12 @@ RANGE_DAYS = {
 
 
 # === API Endpoints ===
+
+@router.get("/config")
+async def get_config(token: str = Depends(verify_token)):
+    """回傳 Dashboard 前端設定（如錄影保留天數）"""
+    return {"retention_days": RECORDING_RETENTION_DAYS}
+
 
 @router.get("/realtime", response_model=RealtimeResponse)
 async def get_realtime(

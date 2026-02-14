@@ -1048,3 +1048,92 @@ footer p {
         padding: 7px 4px;
     }
 }
+
+/* === 觸控裝置：停用 hover 效果，改用 :active 回饋 === */
+@media (hover: none) {
+    .card:hover {
+        transform: none;
+        box-shadow: none;
+    }
+
+    .card:hover::before {
+        opacity: 0;
+    }
+
+    .summary-item:hover {
+        transform: none;
+    }
+
+    .chart-card:hover {
+        box-shadow: none;
+    }
+
+    button:hover, select:hover {
+        background: var(--btn-bg);
+        transform: none;
+    }
+
+    #refreshBtn:hover {
+        background: var(--accent-blue);
+        box-shadow: none;
+    }
+
+    #watchBtn:hover {
+        background: var(--accent-green);
+        box-shadow: none;
+    }
+
+    .clip-item:hover {
+        background-color: var(--btn-bg);
+        border-color: var(--border-color);
+    }
+
+    .clip-group-header:hover {
+        background: var(--bg-card);
+    }
+
+    .timeline-clip:hover {
+        opacity: 0.5;
+    }
+
+    .timeline-event:hover {
+        opacity: 0.7;
+    }
+
+    .player-info button:hover:not(:disabled) {
+        background-color: var(--btn-bg);
+        border-color: var(--border-color);
+    }
+
+    #pinSubmit:hover {
+        background: var(--accent-blue);
+        transform: none;
+        box-shadow: none;
+    }
+
+    /* 觸控裝置改用 :active 提供按壓回饋 */
+    button:active, select:active {
+        background: var(--btn-bg-hover);
+    }
+
+    #refreshBtn:active {
+        background: #2563eb;
+    }
+
+    #watchBtn:active {
+        background: #059669;
+    }
+
+    .clip-item:active {
+        background-color: var(--btn-bg-hover);
+        border-color: var(--accent-blue);
+    }
+
+    .clip-group-header:active {
+        background: var(--btn-bg-hover);
+    }
+
+    #pinSubmit:active {
+        background: #2563eb;
+    }
+}

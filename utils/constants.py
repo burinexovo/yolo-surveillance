@@ -37,6 +37,7 @@ TRACK_HISTORY_MAX_LEN = 20      # 軌跡點最大數量
 # =========================
 RECORDER_FPS = 30
 RECORDER_SEGMENT_MINUTES = 3
+RECORDING_RETENTION_DAYS = 20  # 錄影保留天數（cleanup_recordings 預設值）
 
 # =========================
 # 事件佇列
