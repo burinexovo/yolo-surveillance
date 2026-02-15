@@ -408,7 +408,8 @@ class YoloRuntime:
                     last_after_hours_notify_ts = current_time
                     self._submit_notify_job(
                         annotated_frame,
-                        msg=f"⚠️ 非營業時段偵測到 {total_detected} 人"
+                        msg=f"⚠️ 非營業時段偵測到 {total_detected} 人",
+                        play_audio=False,
                     )
                     logger.info("After-hours alert: detected %d person(s)",
                                 total_detected)
@@ -508,12 +509,12 @@ class YoloRuntime:
         if event == cv2.EVENT_LBUTTONDOWN:
             logger.debug("Mouse click coordinate: (%d, %d)", x, y)
 
-    def _submit_notify_job(self, frame, msg: str = "有人進店囉"):
+    def _submit_notify_job(self, frame, msg: str = "有人進店囉", play_audio: bool = True):
         if not (self.worker and self.line_cfg and self.r2):
             return
 
         cfg = self.settings
-        audio_path = str(cfg.audio_alert_path) if cfg.audio_alert_path else None
+        audio_path = str(cfg.audio_alert_path) if cfg.audio_alert_path and play_audio else None
 
         snap = frame.copy()
         line_cfg = self.line_cfg
