@@ -65,7 +65,8 @@ def play_alert_async(times: int, audio_path: str):
     非同步播放警報
     """
     if not _initialized:
-        raise RuntimeError("Audio not initialized. Call init_audio() first.")
+        logger.warning("提示音播放失敗：音效系統尚未初始化，請先呼叫 init_audio()")
+        return
 
     t = threading.Thread(
         target=_alert_worker,

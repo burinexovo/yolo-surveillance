@@ -34,8 +34,8 @@ def get_reader(camera_id: str = "cam1") -> Optional[RTSPReader]:
         _readers[camera_id] = RTSPReader(
             RTSPReaderConfig(
                 # !!~ 主攝像頭測試用
-                url=camera.rtsp_url,
-                # url=settings.device_camera0,  # 用本機攝像頭
+                # url=camera.rtsp_url,
+                url=settings.device_camera0,  # 用本機攝像頭
                 drop_grab_n=1,  # 更流暢，延遲略高
             )
         )

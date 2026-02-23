@@ -192,7 +192,10 @@ class YoloRuntime:
 
         # --- 音效 ---
         if cfg.audio_alert_path:
-            init_audio(str(cfg.audio_alert_path))
+            try:
+                init_audio(str(cfg.audio_alert_path))
+            except Exception as e:
+                logger.error("音效初始化失敗，語音通知將停用: %s", e)
 
         # --- 錄影模組 ---
         self.rec = VideoRecorder(RecorderConfig(
@@ -523,7 +526,10 @@ class YoloRuntime:
         def notify_job():
             # 1) 語音提醒
             if audio_path:
-                play_alert_async(times=3, audio_path=audio_path)
+                try:
+                    play_alert_async(times=3, audio_path=audio_path)
+                except Exception as e:
+                    logger.error("提示音播放失敗: %s", e)
 
             # 2) resize + encode
             resize_frame = cv2.resize(snap, (960, 540))

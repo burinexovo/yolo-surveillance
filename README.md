@@ -100,7 +100,12 @@
                                   │
                                   ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                     Cloudflare Tunnel (HTTPS)                   │
+│                      Cloudflare Services                        │
+│                                                                 │
+│  Tunnel ─ HTTPS 加密通道，免開 port，轉發請求至本地 FastAPI          │
+│  Workers ─ LINE Bot Webhook、Token 生成與驗證、TURN 憑證           │
+│  R2 ─ 事件截圖儲存、錄影 HLS 片段儲存                               │
+│  DNS ─ tcm.* → Tunnel (後端)  /  api.* → Workers (Auth)          │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -191,6 +196,29 @@ class EventWorker:
 - 生產者-消費者模式，主執行緒不阻塞
 - 可配置佇列大小與溢滿策略
 - 失敗重試機制
+
+---
+
+## 🗄️ 資料庫 Schema
+
+### `visitor_entries` — 進店原始記錄
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| `id` | INTEGER PK | 自動遞增 |
+| `entry_time` | TIMESTAMP | 進店時間（索引） |
+
+### `daily_stats` — 每日彙總快取
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| `date` | TEXT PK | 日期 `YYYY-MM-DD` |
+| `total_visits` | INTEGER | 當日累計進店數 |
+| `first_entry_time` | TEXT | 當日第一筆進店時間 |
+| `last_entry_time` | TEXT | 當日最後進店時間 |
+| `updated_at` | TIMESTAMP | 最後更新時間 |
+
+> 每次偵測到進店事件，同步寫入 `visitor_entries` 並 UPSERT `daily_stats`，圖表查詢直接讀彙總表，不需每次掃全表。
 
 ---
 
