@@ -37,6 +37,14 @@ def init_audio(audio_path: str):
 
 
 def _alert_worker(times: int, audio_path: str):
+    # 每次播放前重新 init，確保使用當前 Windows 預設音效裝置（藍牙喇叭等）
+    try:
+        mixer.quit()
+        mixer.init()
+    except Exception as e:
+        logger.error("mixer 重新初始化失敗: %s", e)
+        return
+
     # 1) 提示音（只播一次）
     try:
         mixer.music.load(audio_path)
